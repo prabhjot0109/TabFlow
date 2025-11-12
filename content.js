@@ -273,8 +273,11 @@
     tabCard.dataset.tabIndex = index;
     tabCard.style.transform = 'translate3d(0, 0, 0)'; // GPU acceleration
     
+    // Determine if we should show screenshot or favicon
+    const hasValidScreenshot = tab.screenshot && typeof tab.screenshot === 'string' && tab.screenshot.length > 0;
+    
     // Add classes
-    if (tab.screenshot) {
+    if (hasValidScreenshot) {
       tabCard.classList.add('has-screenshot');
     } else {
       tabCard.classList.add('has-favicon');
@@ -292,8 +295,8 @@
     const thumbnail = document.createElement('div');
     thumbnail.className = 'tab-thumbnail';
     
-    if (tab.screenshot) {
-      // Lazy load screenshot
+    if (hasValidScreenshot) {
+      // Show screenshot only if it's valid
       const img = document.createElement('img');
       img.className = 'screenshot-img';
       img.dataset.src = tab.screenshot; // Lazy loading
@@ -306,7 +309,7 @@
       
       thumbnail.appendChild(img);
     } else {
-      // Favicon tile
+      // Show favicon tile for inactive tabs without screenshots
       const faviconTile = createFaviconTile(tab);
       thumbnail.appendChild(faviconTile);
     }
@@ -321,7 +324,8 @@
     const header = document.createElement('div');
     header.className = 'tab-header';
     
-    if (tab.favIconUrl && tab.screenshot) {
+    // Show favicon in header only if we have a screenshot (so it appears with URL)
+    if (tab.favIconUrl && hasValidScreenshot) {
       const favicon = document.createElement('img');
       favicon.src = tab.favIconUrl;
       favicon.className = 'tab-favicon';
@@ -338,7 +342,7 @@
     info.appendChild(header);
     
     // URL (only for screenshots)
-    if (tab.screenshot) {
+    if (hasValidScreenshot) {
       const url = document.createElement('div');
       url.className = 'tab-url';
       url.textContent = tab.url;

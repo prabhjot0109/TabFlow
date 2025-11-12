@@ -220,6 +220,13 @@ async function captureTabScreenshot(tabId) {
   try {
     const tab = await chrome.tabs.get(tabId);
     
+    // CRITICAL: Only capture if this tab is currently active
+    // captureVisibleTab captures the VISIBLE tab, not the tab by ID
+    if (!tab.active) {
+      console.debug(`[CAPTURE] Tab ${tabId} is not active, skipping capture`);
+      return null;
+    }
+    
     // Check if tab is capturable
     if (!isTabCapturable(tab)) {
       console.debug(`[CAPTURE] Tab ${tabId} not capturable: ${tab.url}`);
@@ -229,7 +236,7 @@ async function captureTabScreenshot(tabId) {
     // Small delay for rendering
     await new Promise(resolve => setTimeout(resolve, PERF_CONFIG.CAPTURE_DELAY));
     
-    // Capture screenshot
+    // Capture screenshot (this captures the currently visible/active tab)
     const startTime = performance.now();
     const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: 'jpeg',
@@ -277,6 +284,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   updateRecentTabOrder(activeInfo.tabId);
   
   // Queue capture for newly activated tab (non-blocking)
+  // This will only capture if the tab is active, preventing wrong screenshots
   queueCapture(activeInfo.tabId, true); // Priority capture for active tab
 });
 
@@ -331,14 +339,19 @@ async function handleShowTabSwitcher() {
     // INSTANT RESPONSE: Build tab data with cached screenshots only
     // No waiting for captures - overlay opens immediately
     const tabsData = sortedTabs.map(tab => {
-      const screenshot = screenshotCache.get(tab.id);
+      // Only use screenshot if tab is capturable and has valid cache
+      let screenshot = null;
       
-      if (screenshot) {
-        perfMetrics.cacheHits++;
-      } else {
-        perfMetrics.cacheMisses++;
-        // Queue background capture for next time (non-blocking)
-        queueCapture(tab.id, false);
+      if (isTabCapturable(tab)) {
+        const cached = screenshotCache.get(tab.id);
+        if (cached) {
+          screenshot = cached;
+          perfMetrics.cacheHits++;
+        } else {
+          perfMetrics.cacheMisses++;
+          // Don't queue captures for inactive tabs - they would capture the wrong content
+          // Screenshots will be captured automatically when user activates those tabs
+        }
       }
       
       return {
@@ -494,6 +507,10 @@ if (PERF_CONFIG.PERFORMANCE_LOGGING) {
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
+
+// Clear cache on extension load to prevent stale screenshots
+screenshotCache.clear();
+console.log("[INIT] Screenshot cache cleared");
 
 console.log("═══════════════════════════════════════════════════════");
 console.log("Visual Tab Switcher - Performance Optimized");
