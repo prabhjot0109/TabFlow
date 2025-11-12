@@ -1,0 +1,36 @@
+# Extension files
+*.crx
+*.pem
+*.zip
+
+# Icons (generated files - keep the generator)
+icons/*.png
+
+# Development
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Backup files
+*~
+*.bak
+*.swp
+*.swo

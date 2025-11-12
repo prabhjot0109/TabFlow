@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visual Tab Switcher</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 350px;
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: #1e1e1e;
+        color: #ffffff;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin-bottom: 16px;
+        color: #007acc;
+      }
+
+      .section {
+        margin-bottom: 20px;
+      }
+
+      .section h2 {
+        font-size: 14px;
+        margin-bottom: 10px;
+        color: #cccccc;
+      }
+
+      .shortcut {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: #2d2d2d;
+        border-radius: 6px;
+        margin-bottom: 8px;
+      }
+
+      .shortcut-label {
+        font-size: 13px;
+      }
+
+      kbd {
+        background: #404040;
+        border: 1px solid #555;
+        border-radius: 4px;
+        padding: 3px 8px;
+        font-family: monospace;
+        font-size: 12px;
+        color: #fff;
+      }
+
+      .info {
+        background: #2d2d2d;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: #cccccc;
+      }
+
+      .info strong {
+        color: #ffffff;
+      }
+
+      .link {
+        color: #007acc;
+        text-decoration: none;
+        font-size: 12px;
+      }
+
+      .link:hover {
+        text-decoration: underline;
+      }
+
+      .button {
+        width: 100%;
+        padding: 10px;
+        background: #007acc;
+        border: none;
+        border-radius: 6px;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 12px;
+      }
+
+      .button:hover {
+        background: #006bb3;
+      }
+
+      .feature-list {
+        list-style: none;
+        padding: 12px;
+        background: #2d2d2d;
+        border-radius: 6px;
+      }
+
+      .feature-list li {
+        padding: 6px 0;
+        font-size: 12px;
+        color: #cccccc;
+      }
+
+      .feature-list li:before {
+        content: "✓ ";
+        color: #007acc;
+        font-weight: bold;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Visual Tab Switcher</h1>
+
+    <div class="section">
+      <h2>📋 Default Shortcuts</h2>
+      <div class="shortcut">
+        <span class="shortcut-label">Show Tab Switcher</span>
+        <kbd>Alt+Q</kbd>
+      </div>
+      <div class="shortcut">
+        <span class="shortcut-label">Cycle Next Tab</span>
+        <kbd>Ctrl+Shift+K</kbd>
+      </div>
+      <div class="info">
+        <strong>Note:</strong> Chrome protects <kbd>Ctrl+Tab</kbd>. To use it,
+        go to
+        <a href="chrome://extensions/shortcuts" class="link" target="_blank"
+          >chrome://extensions/shortcuts</a
+        >
+        and manually change the shortcut.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>⌨️ When Overlay is Open</h2>
+      <ul class="feature-list">
+        <li><kbd>Tab</kbd> or <kbd>Arrow Keys</kbd> - Navigate tabs</li>
+        <li><kbd>Enter</kbd> - Switch to selected tab</li>
+        <li><kbd>Delete</kbd> or <kbd>Backspace</kbd> - Close selected tab</li>
+        <li><kbd>Esc</kbd> - Close overlay</li>
+        <li>Click any thumbnail to switch instantly</li>
+        <li>Type to search tabs by title or URL</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>✨ Features</h2>
+      <ul class="feature-list">
+        <li>Visual thumbnail previews of all tabs</li>
+        <li>Instant overlay (<100ms) - no waiting!</li>
+        <li>Smart caching: Screenshots auto-captured as you browse</li>
+        <li>Favicon tiles for tabs without screenshots</li>
+        <li>Sorted by recently used tabs</li>
+        <li>Search and filter tabs</li>
+        <li>Quick close with delete key</li>
+        <li>Pinned tabs indicator</li>
+        <li>Responsive grid layout</li>
+        <li>Keeps 20 most recent tabs cached</li>
+      </ul>
+    </div>
+    <button class="button" id="openShortcuts">Configure Shortcuts</button>
+
+    <script>
+      document.getElementById("openShortcuts").addEventListener("click", () => {
+        chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+      });
+    </script>
+  </body>
+</html>
