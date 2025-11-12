@@ -453,38 +453,89 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleMessage(request, sender, sendResponse) {
   try {
+    if (!request || !request.action) {
+      console.error('[ERROR] Invalid message received:', request);
+      sendResponse({ success: false, error: "Invalid message format" });
+      return;
+    }
+    
     switch (request.action) {
       case "switchToTab":
-        await chrome.tabs.update(request.tabId, { active: true });
-        sendResponse({ success: true });
+        if (!request.tabId || typeof request.tabId !== 'number') {
+          sendResponse({ success: false, error: "Invalid tab ID" });
+          return;
+        }
+        try {
+          await chrome.tabs.update(request.tabId, { active: true });
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('[ERROR] Failed to switch to tab:', error);
+          sendResponse({ success: false, error: error.message });
+        }
         break;
         
       case "closeTab":
-        await chrome.tabs.remove(request.tabId);
-        // Cache cleanup handled by onRemoved listener
-        sendResponse({ success: true });
+        if (!request.tabId || typeof request.tabId !== 'number') {
+          sendResponse({ success: false, error: "Invalid tab ID" });
+          return;
+        }
+        try {
+          // Verify tab exists before attempting to close
+          const tab = await chrome.tabs.get(request.tabId).catch(() => null);
+          if (!tab) {
+            console.warn('[WARNING] Tab no longer exists:', request.tabId);
+            sendResponse({ success: false, error: "Tab no longer exists" });
+            return;
+          }
+          await chrome.tabs.remove(request.tabId);
+          // Cache cleanup handled by onRemoved listener
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('[ERROR] Failed to close tab:', error);
+          sendResponse({ success: false, error: error.message });
+        }
         break;
         
       case "refreshTabList":
-        await handleShowTabSwitcher();
-        sendResponse({ success: true });
+        try {
+          await handleShowTabSwitcher();
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('[ERROR] Failed to refresh tab list:', error);
+          sendResponse({ success: false, error: error.message });
+        }
         break;
         
       case "captureTabScreenshot":
-        // Manual capture request
-        const screenshot = await captureTabScreenshot(request.tabId);
-        sendResponse({ 
-          success: !!screenshot, 
-          screenshot: screenshot 
-        });
+        if (!request.tabId || typeof request.tabId !== 'number') {
+          sendResponse({ success: false, error: "Invalid tab ID" });
+          return;
+        }
+        try {
+          // Manual capture request
+          const screenshot = await captureTabScreenshot(request.tabId);
+          sendResponse({ 
+            success: !!screenshot, 
+            screenshot: screenshot 
+          });
+        } catch (error) {
+          console.error('[ERROR] Failed to capture screenshot:', error);
+          sendResponse({ success: false, error: error.message });
+        }
         break;
         
       case "getCacheStats":
-        const stats = screenshotCache.getStats();
-        sendResponse({ success: true, stats });
+        try {
+          const stats = screenshotCache.getStats();
+          sendResponse({ success: true, stats });
+        } catch (error) {
+          console.error('[ERROR] Failed to get cache stats:', error);
+          sendResponse({ success: false, error: error.message });
+        }
         break;
         
       default:
+        console.warn('[WARNING] Unknown action:', request.action);
         sendResponse({ success: false, error: "Unknown action" });
     }
   } catch (error) {

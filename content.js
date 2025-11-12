@@ -395,22 +395,35 @@
   // EVENT DELEGATION - GRID CLICKS
   // ============================================================================
   function handleGridClick(e) {
-    const target = e.target;
-    
-    // Handle close button
-    if (target.dataset.action === 'close' || target.classList.contains('tab-close-btn')) {
-      e.stopPropagation();
-      const tabId = parseInt(target.dataset.tabId || target.parentElement.dataset.tabId);
-      const index = parseInt(target.dataset.tabIndex || target.parentElement.dataset.tabIndex);
-      closeTab(tabId, index);
-      return;
-    }
-    
-    // Handle tab card click
-    const tabCard = target.closest('.tab-card');
-    if (tabCard) {
-      const tabId = parseInt(tabCard.dataset.tabId);
-      switchToTab(tabId);
+    try {
+      const target = e.target;
+      
+      // Handle close button
+      if (target.dataset.action === 'close' || target.classList.contains('tab-close-btn')) {
+        e.stopPropagation();
+        const tabId = parseInt(target.dataset.tabId || target.parentElement.dataset.tabId);
+        const index = parseInt(target.dataset.tabIndex || target.parentElement.dataset.tabIndex);
+        
+        if (tabId && !isNaN(tabId)) {
+          closeTab(tabId, index);
+        } else {
+          console.error('[TAB SWITCHER] Invalid tab ID in close button:', target);
+        }
+        return;
+      }
+      
+      // Handle tab card click
+      const tabCard = target.closest('.tab-card');
+      if (tabCard) {
+        const tabId = parseInt(tabCard.dataset.tabId);
+        if (tabId && !isNaN(tabId)) {
+          switchToTab(tabId);
+        } else {
+          console.error('[TAB SWITCHER] Invalid tab ID in card:', tabCard);
+        }
+      }
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in handleGridClick:', error);
     }
   }
   
@@ -420,6 +433,15 @@
   function handleKeyDown(e) {
     if (!state.isOverlayVisible) return;
     
+    // Allow Backspace to work normally in search box (text deletion)
+    // Only intercept Backspace when NOT in search box
+    const isInSearchBox = e.target === state.domCache.searchBox;
+    
+    if (e.key === 'Backspace' && isInSearchBox) {
+      // Let Backspace work normally for text editing in search box
+      return;
+    }
+    
     // Throttle to 60fps
     const now = performance.now();
     if (now - state.lastKeyTime < state.keyThrottleMs) {
@@ -428,51 +450,59 @@
     }
     state.lastKeyTime = now;
     
-    switch(e.key) {
-      case 'Escape':
-        e.preventDefault();
-        closeOverlay();
-        break;
-        
-      case 'Enter':
-        e.preventDefault();
-        const selectedTab = state.filteredTabs[state.selectedIndex];
-        if (selectedTab) {
-          switchToTab(selectedTab.id);
-        }
-        break;
-        
-      case 'Tab':
-        e.preventDefault();
-        if (e.shiftKey) {
-          // Shift+Tab: Navigate backwards (like Arrow Up/Left)
-          selectPrevious();
-        } else {
-          // Tab: Navigate forwards (like Arrow Down/Right)
-          selectNext();
-        }
-        break;
-        
-      case 'ArrowRight':
-      case 'ArrowDown':
-        e.preventDefault();
-        selectNext(); // Same as Tab
-        break;
-        
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        e.preventDefault();
-        selectPrevious(); // Same as Shift+Tab
-        break;
-        
-      case 'Delete':
-      case 'Backspace':
-        e.preventDefault();
-        const tab = state.filteredTabs[state.selectedIndex];
-        if (tab) {
-          closeTab(tab.id, state.selectedIndex);
-        }
-        break;
+    try {
+      switch(e.key) {
+        case 'Escape':
+          e.preventDefault();
+          closeOverlay();
+          break;
+          
+        case 'Enter':
+          e.preventDefault();
+          if (state.filteredTabs.length > 0 && state.selectedIndex >= 0 && state.selectedIndex < state.filteredTabs.length) {
+            const selectedTab = state.filteredTabs[state.selectedIndex];
+            if (selectedTab) {
+              switchToTab(selectedTab.id);
+            }
+          }
+          break;
+          
+        case 'Tab':
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Shift+Tab: Navigate backwards (like Arrow Up/Left)
+            selectPrevious();
+          } else {
+            // Tab: Navigate forwards (like Arrow Down/Right)
+            selectNext();
+          }
+          break;
+          
+        case 'ArrowRight':
+        case 'ArrowDown':
+          e.preventDefault();
+          selectNext(); // Same as Tab
+          break;
+          
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          e.preventDefault();
+          selectPrevious(); // Same as Shift+Tab
+          break;
+          
+        case 'Delete':
+          // Only close tab with Delete key, and only when NOT typing in search box
+          if (!isInSearchBox && state.filteredTabs.length > 0 && state.selectedIndex >= 0 && state.selectedIndex < state.filteredTabs.length) {
+            e.preventDefault();
+            const tab = state.filteredTabs[state.selectedIndex];
+            if (tab && tab.id) {
+              closeTab(tab.id, state.selectedIndex);
+            }
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in handleKeyDown:', error);
     }
   }
   
@@ -484,60 +514,81 @@
   // SEARCH HANDLING
   // ============================================================================
   function handleSearch(e) {
-    const query = e.target.value.toLowerCase().trim();
-    
-    if (!query) {
-      state.filteredTabs = state.currentTabs;
+    try {
+      const query = e.target.value.toLowerCase().trim();
+      
+      if (!query) {
+        state.filteredTabs = state.currentTabs;
+        state.selectedIndex = 0;
+        
+        if (state.currentTabs.length > 50) {
+          renderTabsVirtual(state.currentTabs);
+        } else {
+          renderTabsStandard(state.currentTabs);
+        }
+        return;
+      }
+      
+      // Filter tabs
+      const filtered = state.currentTabs.filter(tab => 
+        tab && tab.title && tab.url &&
+        (tab.title.toLowerCase().includes(query) || 
+         tab.url.toLowerCase().includes(query))
+      );
+      
+      state.filteredTabs = filtered;
       state.selectedIndex = 0;
       
-      if (state.currentTabs.length > 50) {
-        renderTabsVirtual(state.currentTabs);
+      if (filtered.length > 50) {
+        renderTabsVirtual(filtered);
       } else {
-        renderTabsStandard(state.currentTabs);
+        renderTabsStandard(filtered);
       }
-      return;
-    }
-    
-    // Filter tabs
-    const filtered = state.currentTabs.filter(tab => 
-      tab.title.toLowerCase().includes(query) || 
-      tab.url.toLowerCase().includes(query)
-    );
-    
-    state.filteredTabs = filtered;
-    state.selectedIndex = 0;
-    
-    if (filtered.length > 50) {
-      renderTabsVirtual(filtered);
-    } else {
-      renderTabsStandard(filtered);
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in handleSearch:', error);
+      // Fallback to showing all tabs
+      state.filteredTabs = state.currentTabs;
+      state.selectedIndex = 0;
+      renderTabsStandard(state.currentTabs);
     }
   }
   
   function handleSearchKeydown(e) {
-    // Arrow Down or Tab: Move to next tab
-    if (e.key === 'ArrowDown' || e.key === 'Tab') {
-      e.preventDefault();
-      if (e.shiftKey) {
-        // Shift+Tab: Move to previous tab
+    try {
+      // Allow Backspace to work normally for text editing
+      if (e.key === 'Backspace') {
+        // Don't prevent default - let it delete text naturally
+        return;
+      }
+      
+      // Arrow Down or Tab: Move to next tab
+      if (e.key === 'ArrowDown' || e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Shift+Tab: Move to previous tab
+          selectPrevious();
+        } else {
+          // Tab or Arrow Down: Move to next tab
+          selectNext();
+        }
+      } 
+      // Arrow Up: Move to previous tab
+      else if (e.key === 'ArrowUp') {
+        e.preventDefault();
         selectPrevious();
-      } else {
-        // Tab or Arrow Down: Move to next tab
-        selectNext();
       }
-    } 
-    // Arrow Up: Move to previous tab
-    else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      selectPrevious();
-    }
-    // Enter: Switch to selected tab
-    else if (e.key === 'Enter') {
-      e.preventDefault();
-      const selectedTab = state.filteredTabs[state.selectedIndex];
-      if (selectedTab) {
-        switchToTab(selectedTab.id);
+      // Enter: Switch to selected tab
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.filteredTabs.length > 0 && state.selectedIndex >= 0 && state.selectedIndex < state.filteredTabs.length) {
+          const selectedTab = state.filteredTabs[state.selectedIndex];
+          if (selectedTab && selectedTab.id) {
+            switchToTab(selectedTab.id);
+          }
+        }
       }
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in handleSearchKeydown:', error);
     }
   }
   
@@ -545,62 +596,108 @@
   // SELECTION MANAGEMENT
   // ============================================================================
   function selectNext() {
-    // Get current filtered tabs count
-    if (state.filteredTabs.length === 0) return;
-    
-    state.selectedIndex = (state.selectedIndex + 1) % state.filteredTabs.length;
-    updateSelection();
+    try {
+      // Get current filtered tabs count
+      if (!state.filteredTabs || state.filteredTabs.length === 0) {
+        console.warn('[TAB SWITCHER] No tabs available for navigation');
+        return;
+      }
+      
+      state.selectedIndex = (state.selectedIndex + 1) % state.filteredTabs.length;
+      updateSelection();
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in selectNext:', error);
+    }
   }
   
   function selectPrevious() {
-    // Get current filtered tabs count
-    if (state.filteredTabs.length === 0) return;
-    
-    state.selectedIndex = (state.selectedIndex - 1 + state.filteredTabs.length) % state.filteredTabs.length;
-    updateSelection();
+    try {
+      // Get current filtered tabs count
+      if (!state.filteredTabs || state.filteredTabs.length === 0) {
+        console.warn('[TAB SWITCHER] No tabs available for navigation');
+        return;
+      }
+      
+      state.selectedIndex = (state.selectedIndex - 1 + state.filteredTabs.length) % state.filteredTabs.length;
+      updateSelection();
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in selectPrevious:', error);
+    }
   }
   
   function updateSelection() {
-    const cards = state.domCache.grid.querySelectorAll('.tab-card');
-    
-    // Batch DOM updates with requestAnimationFrame
-    requestAnimationFrame(() => {
-      cards.forEach((card, index) => {
-        if (index === state.selectedIndex) {
-          card.classList.add('selected');
-          card.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'nearest',
-            inline: 'nearest'
-          });
-        } else {
-          card.classList.remove('selected');
-        }
+    try {
+      if (!state.domCache.grid) {
+        console.warn('[TAB SWITCHER] Grid not available for selection update');
+        return;
+      }
+      
+      const cards = state.domCache.grid.querySelectorAll('.tab-card');
+      
+      if (cards.length === 0) {
+        console.warn('[TAB SWITCHER] No tab cards available');
+        return;
+      }
+      
+      // Batch DOM updates with requestAnimationFrame
+      requestAnimationFrame(() => {
+        cards.forEach((card, index) => {
+          if (index === state.selectedIndex) {
+            card.classList.add('selected');
+            card.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'nearest',
+              inline: 'nearest'
+            });
+          } else {
+            card.classList.remove('selected');
+          }
+        });
       });
-    });
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in updateSelection:', error);
+    }
   }
   
   // ============================================================================
   // TAB ACTIONS
   // ============================================================================
   function switchToTab(tabId) {
-    chrome.runtime.sendMessage({
-      action: "switchToTab",
-      tabId: tabId
-    }, () => {
+    try {
+      if (!tabId || typeof tabId !== 'number') {
+        console.error('[TAB SWITCHER] Invalid tab ID:', tabId);
+        return;
+      }
+      
+      chrome.runtime.sendMessage({
+        action: "switchToTab",
+        tabId: tabId
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[TAB SWITCHER] Error switching to tab:', chrome.runtime.lastError.message);
+        }
+        closeOverlay();
+      });
+    } catch (error) {
+      console.error('[TAB SWITCHER] Exception in switchToTab:', error);
       closeOverlay();
-    });
+    }
   }
   
   function closeTab(tabId, index) {
-    chrome.runtime.sendMessage({
-      action: "closeTab",
-      tabId: tabId
-    }, (response) => {
-      if (response && response.success) {
-        // Remove from current list
-        state.currentTabs = state.currentTabs.filter(tab => tab.id !== tabId);
-        state.filteredTabs = state.filteredTabs.filter(tab => tab.id !== tabId);
+    try {
+      if (!tabId || typeof tabId !== 'number') {
+        console.error('[TAB SWITCHER] Invalid tab ID for closing:', tabId);
+        return;
+      }
+      
+      // Validate that the tab exists in our current list
+      const tabExists = state.currentTabs.some(tab => tab && tab.id === tabId);
+      if (!tabExists) {
+        console.warn('[TAB SWITCHER] Tab no longer exists:', tabId);
+        // Refresh the tab list
+        state.filteredTabs = state.filteredTabs.filter(tab => tab && tab.id !== tabId);
+        state.currentTabs = state.currentTabs.filter(tab => tab && tab.id !== tabId);
         
         // Adjust selected index
         if (state.selectedIndex >= state.filteredTabs.length) {
@@ -608,44 +705,96 @@
         }
         
         // Re-render
-        if (state.filteredTabs.length > 50) {
-          renderTabsVirtual(state.filteredTabs);
+        if (state.filteredTabs.length > 0) {
+          if (state.filteredTabs.length > 50) {
+            renderTabsVirtual(state.filteredTabs);
+          } else {
+            renderTabsStandard(state.filteredTabs);
+          }
         } else {
-          renderTabsStandard(state.filteredTabs);
-        }
-        
-        // Close overlay if no tabs left
-        if (state.currentTabs.length === 0) {
           closeOverlay();
         }
+        return;
       }
-    });
+      
+      chrome.runtime.sendMessage({
+        action: "closeTab",
+        tabId: tabId
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[TAB SWITCHER] Error closing tab:', chrome.runtime.lastError.message);
+          return;
+        }
+        
+        if (response && response.success) {
+          // Remove from current list
+          state.currentTabs = state.currentTabs.filter(tab => tab && tab.id !== tabId);
+          state.filteredTabs = state.filteredTabs.filter(tab => tab && tab.id !== tabId);
+          
+          // Adjust selected index
+          if (state.filteredTabs.length > 0) {
+            if (state.selectedIndex >= state.filteredTabs.length) {
+              state.selectedIndex = Math.max(0, state.filteredTabs.length - 1);
+            }
+            
+            // Re-render
+            if (state.filteredTabs.length > 50) {
+              renderTabsVirtual(state.filteredTabs);
+            } else {
+              renderTabsStandard(state.filteredTabs);
+            }
+            
+            // Refocus search box to allow continued typing
+            if (state.domCache.searchBox) {
+              state.domCache.searchBox.focus();
+            }
+          } else {
+            // Close overlay if no tabs left
+            closeOverlay();
+          }
+        }
+      });
+    } catch (error) {
+      console.error('[TAB SWITCHER] Exception in closeTab:', error);
+    }
   }
   
   // ============================================================================
   // CLOSE OVERLAY
   // ============================================================================
   function closeOverlay() {
-    if (!state.isOverlayVisible) return;
-    
-    // GPU-accelerated fade-out
-    requestAnimationFrame(() => {
-      state.overlay.style.opacity = '0';
+    try {
+      if (!state.isOverlayVisible) return;
       
-      setTimeout(() => {
-        state.overlay.style.display = 'none';
-        state.isOverlayVisible = false;
-        
-        // Cleanup
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('keyup', handleKeyUp);
-        
-        if (state.intersectionObserver) {
-          state.intersectionObserver.disconnect();
-          state.intersectionObserver = null;
+      // GPU-accelerated fade-out
+      requestAnimationFrame(() => {
+        if (state.overlay) {
+          state.overlay.style.opacity = '0';
         }
-      }, 200); // Match CSS transition
-    });
+        
+        setTimeout(() => {
+          if (state.overlay) {
+            state.overlay.style.display = 'none';
+          }
+          state.isOverlayVisible = false;
+          
+          // Cleanup
+          document.removeEventListener('keydown', handleKeyDown);
+          document.removeEventListener('keyup', handleKeyUp);
+          
+          if (state.intersectionObserver) {
+            state.intersectionObserver.disconnect();
+            state.intersectionObserver = null;
+          }
+        }, 200); // Match CSS transition
+      });
+    } catch (error) {
+      console.error('[TAB SWITCHER] Error in closeOverlay:', error);
+      // Force cleanup even on error
+      state.isOverlayVisible = false;
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    }
   }
   
   // ============================================================================
