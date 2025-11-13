@@ -842,7 +842,7 @@
     let items = [];
     try {
       items = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getRecentlyClosed', maxResults: 50 }, (res) => {
+        chrome.runtime.sendMessage({ action: 'getRecentlyClosed', maxResults: 10 }, (res) => {
           if (res && res.success) resolve(res.items || []); else resolve([]);
         });
       });
@@ -1861,7 +1861,7 @@
       setViewMode('recent');
       // Fetch recently closed items
       const items = await new Promise(resolve => {
-        chrome.runtime.sendMessage({ action: 'getRecentlyClosed', maxResults: 50 }, (res) => {
+        chrome.runtime.sendMessage({ action: 'getRecentlyClosed', maxResults: 10 }, (res) => {
           if (!res || !res.success) return resolve([]);
           resolve(res.items || []);
         });

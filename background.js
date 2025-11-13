@@ -462,7 +462,9 @@ async function handleMessage(request, sender, sendResponse) {
     switch (request.action) {
       case "getRecentlyClosed":
         try {
-          const sessions = await chrome.sessions.getRecentlyClosed({ maxResults: request.maxResults || 50 });
+          const apiMax = 25; // sessions.MAX_SESSION_RESULTS
+          const uiMax = Math.min(25, (typeof request.maxResults === 'number' ? request.maxResults : 10));
+          const sessions = await chrome.sessions.getRecentlyClosed({ maxResults: apiMax });
           const items = [];
           for (const s of sessions) {
             if (s.tab) {
@@ -498,7 +500,10 @@ async function handleMessage(request, sender, sendResponse) {
               });
             }
           }
-          sendResponse({ success: true, items });
+          // Sort by most recently modified (desc) and limit to uiMax results
+          items.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+          const limited = items.slice(0, uiMax);
+          sendResponse({ success: true, items: limited });
         } catch (error) {
           console.error('[ERROR] Failed to get recently closed:', error);
           sendResponse({ success: false, error: error.message });
