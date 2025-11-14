@@ -226,13 +226,18 @@ async function processQueue() {
 }
 
 // Capture screenshot with error handling and compression
-async function captureTabScreenshot(tabId, forceQuality = null) {
+// "requireActive" allows callers (like the onActivated handler) to skip
+// captures for background tabs, while the tab switcher can still request
+// a best-effort thumbnail for already-open tabs.
+async function captureTabScreenshot(tabId, forceQuality = null, requireActive = true) {
   try {
     const tab = await chrome.tabs.get(tabId);
     
-    // CRITICAL: Only capture if this tab is currently active
-    // captureVisibleTab captures the VISIBLE tab, not the tab by ID
-    if (!tab.active) {
+    // Normally we only want to capture active tabs, because
+    // captureVisibleTab always captures the visible tab for the window.
+    // For best-effort previews of already-open tabs we allow callers
+    // to opt out of this strict check.
+    if (requireActive && !tab.active) {
       console.debug(`[CAPTURE] Tab ${tabId} is not active, skipping capture`);
       return null;
     }
@@ -638,8 +643,9 @@ async function handleMessage(request, sender, sendResponse) {
           return;
         }
         try {
-          // Manual capture request
-          const screenshot = await captureTabScreenshot(request.tabId);
+          // Manual capture request from UI: we do a best-effort capture
+          // for already-open tabs, so do not require the tab to be active
+          const screenshot = await captureTabScreenshot(request.tabId, null, false);
           sendResponse({ 
             success: !!screenshot, 
             screenshot: screenshot 
@@ -707,11 +713,19 @@ if (PERF_CONFIG.PERFORMANCE_LOGGING) {
 screenshotCache.clear();
 console.log("[INIT] Screenshot cache cleared");
 
-// Load quality tier setting from storage
+// Load quality tier setting from storage (defensive to avoid TypeError)
 chrome.storage.local.get(['qualityTier'], (result) => {
-  if (result.qualityTier && PERF_CONFIG.QUALITY_TIERS[result.qualityTier]) {
-    currentQualityTier = result.qualityTier;
-    console.log(`[INIT] Loaded quality tier: ${currentQualityTier}`);
+  try {
+    const stored = result && result.qualityTier;
+    const tiers = PERF_CONFIG && PERF_CONFIG.QUALITY_TIERS;
+    if (stored && tiers && tiers[stored]) {
+      currentQualityTier = stored;
+      console.log(`[INIT] Loaded quality tier: ${currentQualityTier}`);
+    } else {
+      console.log('[INIT] Using default quality tier:', currentQualityTier);
+    }
+  } catch (e) {
+    console.warn('[INIT] Failed to load quality tier, using default:', e && e.message ? e.message : e);
   }
 });
 
