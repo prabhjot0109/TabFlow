@@ -2,6 +2,10 @@
 /* Modern, Minimalist, Solid Design */
 
 :host {
+  /* CSS Reset for Shadow DOM */
+  all: initial;
+
+  /* Custom Properties */
   --bg-overlay: rgba(0, 0, 0, 0.85); /* Darker, less transparent backdrop */
   --bg-surface: #1a1a1a; /* Solid background */
   --border-subtle: #333333;
@@ -168,6 +172,15 @@
   min-height: 200px;
 }
 
+/* Web Search Mode Improvements */
+.tab-switcher-grid:has(.tab-card[data-web-search="1"]) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Remove minimum height constraint */
+  padding-bottom: 0;
+  padding-right: 0; /* Remove scrollbar padding */
+}
+
 .tab-switcher-grid::-webkit-scrollbar {
   width: 8px;
 }
@@ -211,6 +224,26 @@
   background: var(--card-hover);
 }
 
+/* Web Search Card Specifics */
+.tab-card[data-web-search="1"] {
+  width: 100% !important; /* Force full width */
+  max-width: 100% !important;
+  min-width: 100% !important;
+  height: 64px !important; /* Fixed height for bar look */
+  max-height: 64px !important;
+  min-height: 64px !important;
+  flex-direction: row !important; /* Horizontal layout */
+  align-items: center !important;
+  padding: 0 16px !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.tab-card[data-web-search="1"]:hover {
+  transform: none; /* Disable lift effect for bar */
+}
+
 /* Thumbnail Area */
 .tab-thumbnail {
   flex: 1;
@@ -220,6 +253,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.tab-card[data-web-search="1"] .tab-thumbnail {
+  flex: 0 0 32px;
+  height: 32px;
+  width: 32px;
+  border-radius: 4px;
+  background: transparent;
+  margin: 0;
 }
 
 .screenshot-img {
@@ -245,10 +287,19 @@
   background: var(--card-bg);
 }
 
+.tab-card[data-web-search="1"] .favicon-tile {
+  background: transparent;
+}
+
 .favicon-large {
   width: 40px;
   height: 40px;
   object-fit: contain;
+}
+
+.tab-card[data-web-search="1"] .favicon-large {
+  width: 24px;
+  height: 24px;
 }
 
 .favicon-letter {
@@ -275,11 +326,31 @@
   background: var(--card-hover);
 }
 
+.tab-card[data-web-search="1"] .tab-info {
+  flex: 1 !important;
+  border-top: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
 .tab-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 2px;
+}
+
+.tab-card[data-web-search="1"] .tab-header {
+  margin: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
 }
 
 .tab-favicon {
@@ -298,6 +369,10 @@
   flex: 1;
 }
 
+.tab-card[data-web-search="1"] .tab-title {
+  font-size: 15px;
+}
+
 .tab-url {
   font-size: 11px;
   color: var(--text-secondary);
@@ -305,6 +380,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-left: 22px; /* Align with title text */
+}
+
+.tab-card[data-web-search="1"] .tab-url {
+  display: none;
 }
 
 /* Close Button */

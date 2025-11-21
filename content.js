@@ -13,6 +13,10 @@
 /* Modern, Minimalist, Solid Design */
 
 :host {
+  /* CSS Reset for Shadow DOM */
+  all: initial;
+  
+  /* Custom Properties */
   --bg-overlay: rgba(0, 0, 0, 0.85); /* Darker, less transparent backdrop */
   --bg-surface: #1a1a1a; /* Solid background */
   --border-subtle: #333333;
@@ -25,7 +29,7 @@
   --radius-lg: 12px;
   --radius-md: 8px;
   --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.6);
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: light) {
@@ -178,6 +182,15 @@
   min-height: 200px;
 }
 
+/* Web Search Mode Improvements */
+.tab-switcher-grid:has(.tab-card[data-web-search="1"]) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Remove minimum height constraint */
+  padding-bottom: 0;
+  padding-right: 0; /* Remove scrollbar padding */
+}
+
 .tab-switcher-grid::-webkit-scrollbar {
   width: 8px;
 }
@@ -221,6 +234,26 @@
   background: var(--card-hover);
 }
 
+/* Web Search Card Specifics */
+.tab-card[data-web-search="1"] {
+  width: 100% !important; /* Force full width */
+  max-width: 100% !important;
+  min-width: 100% !important;
+  height: 64px !important; /* Fixed height for bar look */
+  max-height: 64px !important;
+  min-height: 64px !important;
+  flex-direction: row !important; /* Horizontal layout */
+  align-items: center !important;
+  padding: 0 16px !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.tab-card[data-web-search="1"]:hover {
+  transform: none; /* Disable lift effect for bar */
+}
+
 /* Thumbnail Area */
 .tab-thumbnail {
   flex: 1;
@@ -230,6 +263,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.tab-card[data-web-search="1"] .tab-thumbnail {
+  flex: 0 0 32px;
+  height: 32px;
+  width: 32px;
+  border-radius: 4px;
+  background: transparent;
+  margin: 0;
 }
 
 .screenshot-img {
@@ -255,10 +297,19 @@
   background: var(--card-bg);
 }
 
+.tab-card[data-web-search="1"] .favicon-tile {
+  background: transparent;
+}
+
 .favicon-large {
   width: 40px;
   height: 40px;
   object-fit: contain;
+}
+
+.tab-card[data-web-search="1"] .favicon-large {
+  width: 24px;
+  height: 24px;
 }
 
 .favicon-letter {
@@ -285,11 +336,31 @@
   background: var(--card-hover);
 }
 
+.tab-card[data-web-search="1"] .tab-info {
+  flex: 1 !important;
+  border-top: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
 .tab-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 2px;
+}
+
+.tab-card[data-web-search="1"] .tab-header {
+  margin: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
 }
 
 .tab-favicon {
@@ -308,6 +379,10 @@
   flex: 1;
 }
 
+.tab-card[data-web-search="1"] .tab-title {
+  font-size: 15px;
+}
+
 .tab-url {
   font-size: 11px;
   color: var(--text-secondary);
@@ -315,6 +390,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-left: 22px; /* Align with title text */
+}
+
+.tab-card[data-web-search="1"] .tab-url {
+  display: none;
 }
 
 /* Close Button */
@@ -862,6 +941,10 @@ kbd {
       tabCard.dataset.sessionId = tab.sessionId;
       tabCard.dataset.recent = "1";
     }
+    if (tab && tab.isWebSearch) {
+      tabCard.dataset.webSearch = "1";
+      tabCard.dataset.searchQuery = tab.searchQuery;
+    }
     tabCard.dataset.tabIndex = index;
     tabCard.setAttribute("role", "button");
     tabCard.tabIndex = 0; // Make card focusable for accessibility
@@ -954,8 +1037,8 @@ kbd {
 
     tabCard.appendChild(info);
 
-    // Close button (only for active tabs view)
-    if (!tab.sessionId) {
+    // Close button (only for active tabs view and not web search)
+    if (!tab.sessionId && !tab.isWebSearch) {
       const closeBtn = document.createElement("button");
       closeBtn.className = "tab-close-btn";
       closeBtn.innerHTML = "×";
@@ -1033,6 +1116,17 @@ kbd {
           const sessionId = tabCard.dataset.sessionId;
           if (sessionId) {
             restoreSession(sessionId);
+          }
+          return;
+        }
+        if (tabCard.dataset.webSearch === "1") {
+          const query = tabCard.dataset.searchQuery;
+          if (query) {
+            window.open(
+              `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+              "_blank"
+            );
+            closeOverlay();
           }
           return;
         }
@@ -1265,6 +1359,29 @@ kbd {
           : state.domCache?.searchBox?.value ?? "";
       const query = String(rawVal).trim();
 
+      // Web Search Mode: starts with ?
+      if (query.startsWith("?")) {
+        const searchQuery = query.substring(1).trim();
+        const webSearchTab = {
+          id: "web-search",
+          title: searchQuery
+            ? `Search Web for "${searchQuery}"`
+            : "Type to search web...",
+          url: searchQuery
+            ? `https://www.google.com/search?q=${encodeURIComponent(
+                searchQuery
+              )}`
+            : "",
+          favIconUrl: "https://www.google.com/favicon.ico",
+          isWebSearch: true,
+          searchQuery: searchQuery,
+        };
+        state.filteredTabs = [webSearchTab];
+        state.selectedIndex = 0;
+        renderTabsStandard(state.filteredTabs);
+        return;
+      }
+
       // '.' quick toggle
       const isDeleteBackward = !!(
         e &&
@@ -1448,6 +1565,14 @@ kbd {
             selectedTab.sessionId
           ) {
             restoreSession(selectedTab.sessionId);
+          } else if (selectedTab && selectedTab.isWebSearch) {
+            window.open(
+              `https://www.google.com/search?q=${encodeURIComponent(
+                selectedTab.searchQuery
+              )}`,
+              "_blank"
+            );
+            closeOverlay();
           } else if (selectedTab && selectedTab.id) {
             switchToTab(selectedTab.id);
           }
