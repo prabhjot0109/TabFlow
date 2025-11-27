@@ -3,6 +3,9 @@
 *.pem
 *.zip
 
+node_modules
+biome
+
 # Development
 .DS_Store
 Thumbs.db

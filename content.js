@@ -5,8 +5,7 @@
 // Target: <16ms interactions, 60fps animations, <50MB memory
 // ============================================================================
 
-(function () {
-  "use strict";
+(() => {
 
   const SHADOW_HOST_ID = "tab-switcher-host";
   const SHADOW_CSS = `/* Visual Tab Switcher - Modern Glass UI 2.0 */
@@ -801,23 +800,23 @@ kbd:hover {
   };
 
   // WeakMap for tab metadata (automatic garbage collection)
-  const tabMetadata = new WeakMap();
+
 
   // ============================================================================
   // MESSAGE LISTENER
   // ============================================================================
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
     if (request.action === "showTabSwitcher") {
       // If overlay already visible, treat repeated Alt+Q as cycle-next
       if (state.isOverlayVisible) {
         selectNext();
         // Ensure only one selection is highlighted
         enforceSingleSelection(true);
-        sendResponse?.({ success: true, advanced: true });
+        sendResponse({ success: true, advanced: true });
         return true;
       }
       showTabSwitcher(request.tabs, request.activeTabId);
-      sendResponse?.({ success: true });
+      sendResponse({ success: true });
     }
     return true;
   });
@@ -827,15 +826,27 @@ kbd:hover {
   // ============================================================================
   function ensureShadowRoot() {
     try {
-      if (!state.host) {
-        const existingHost = document.getElementById(SHADOW_HOST_ID);
+      if (!state.host || !state.host.isConnected) {
+      state.shadowRoot = null;
+      state.styleElement = null;
+      const existingHost = document.getElementById(SHADOW_HOST_ID);
         if (existingHost) {
           state.host = existingHost;
         } else {
-          const host = document.createElement("div");
-          host.id = SHADOW_HOST_ID;
-          document.body.appendChild(host);
-          state.host = host;
+        const host = document.createElement("tab-switcher-mount");
+        host.id = SHADOW_HOST_ID;
+        // Fix layout disruption: ensure host is out of flow and doesn't affect page layout
+        // Use !important to override any aggressive site CSS (e.g. global resets)
+        host.style.setProperty("position", "fixed", "important");
+        host.style.setProperty("top", "0", "important");
+        host.style.setProperty("left", "0", "important");
+        host.style.setProperty("width", "0", "important");
+        host.style.setProperty("height", "0", "important");
+        host.style.setProperty("z-index", "2147483647", "important");
+        host.style.setProperty("pointer-events", "none", "important");
+        host.style.setProperty("display", "block", "important");
+        (document.body || document.documentElement).appendChild(host);
+        state.host = host;
         }
       }
       if (!state.shadowRoot) {
@@ -1104,11 +1115,11 @@ kbd:hover {
                 resolve([]);
                 return;
               }
-              if (res && res.success) resolve(res.items || []);
+              if (res?.success) resolve(res.items || []);
               else resolve([]);
             }
           );
-        } catch (err) {
+        } catch {
           resolve([]);
         }
       });
@@ -1266,11 +1277,11 @@ kbd:hover {
     if (tab && typeof tab.id === "number") {
       tabCard.dataset.tabId = tab.id;
     }
-    if (tab && tab.sessionId) {
+    if (tab?.sessionId) {
       tabCard.dataset.sessionId = tab.sessionId;
       tabCard.dataset.recent = "1";
     }
-    if (tab && tab.isWebSearch) {
+    if (tab?.isWebSearch) {
       tabCard.dataset.webSearch = "1";
       tabCard.dataset.searchQuery = tab.searchQuery;
     }
@@ -1343,7 +1354,7 @@ kbd:hover {
       const favicon = document.createElement("img");
       favicon.src = tab.favIconUrl;
       favicon.className = "tab-favicon";
-      favicon.onerror = () => (favicon.style.display = "none");
+      favicon.onerror = () => { favicon.style.display = "none"; };
       header.appendChild(favicon);
     }
 
@@ -1427,7 +1438,7 @@ kbd:hover {
           target.dataset.tabIndex || target.parentElement.dataset.tabIndex
         );
 
-        if (tabId && !isNaN(tabId)) {
+        if (tabId && !Number.isNaN(tabId)) {
           closeTab(tabId, index);
         } else {
           console.error(
@@ -1460,7 +1471,7 @@ kbd:hover {
           return;
         }
         const tabId = parseInt(tabCard.dataset.tabId);
-        if (tabId && !isNaN(tabId)) {
+        if (tabId && !Number.isNaN(tabId)) {
           switchToTab(tabId);
         } else {
           console.error("[TAB SWITCHER] Invalid tab ID in card:", tabCard);
@@ -1556,7 +1567,7 @@ kbd:hover {
           ) {
             e.preventDefault();
             const tab = state.filteredTabs[state.selectedIndex];
-            if (tab && tab.id) {
+            if (tab?.id) {
               closeTab(tab.id, state.selectedIndex);
             }
           }
@@ -1567,7 +1578,7 @@ kbd:hover {
     }
   }
 
-  function handleKeyUp(e) {
+  function handleKeyUp() {
     // Reserved for future use
   }
 
@@ -1583,7 +1594,7 @@ kbd:hover {
     const DEBOUNCE_MS = 300; // Wait for user to finish typing on large sets
     const LARGE_TAB_THRESHOLD = 50;
 
-    return function (e) {
+    return (e) => {
       const now = performance.now();
       const timeSinceLastSearch = now - lastSearchTime;
       const isLargeTabSet = state.currentTabs.length >= LARGE_TAB_THRESHOLD;
@@ -1683,7 +1694,7 @@ kbd:hover {
   function handleSearch(e) {
     try {
       const rawVal =
-        e && e.target && typeof e.target.value === "string"
+        e?.target?.value && typeof e.target.value === "string"
           ? e.target.value
           : state.domCache?.searchBox?.value ?? "";
       const query = String(rawVal).trim();
@@ -1843,7 +1854,7 @@ kbd:hover {
           state.selectedIndex < state.filteredTabs.length
         ) {
           const tab = state.filteredTabs[state.selectedIndex];
-          if (tab && tab.id) closeTab(tab.id, state.selectedIndex);
+          if (tab?.id) closeTab(tab.id, state.selectedIndex);
         }
         return;
       }
@@ -1900,11 +1911,10 @@ kbd:hover {
           const selectedTab = state.filteredTabs[state.selectedIndex];
           if (
             state.viewMode === "recent" &&
-            selectedTab &&
-            selectedTab.sessionId
+            selectedTab?.sessionId
           ) {
             restoreSession(selectedTab.sessionId);
-          } else if (selectedTab && selectedTab.isWebSearch) {
+          } else if (selectedTab?.isWebSearch) {
             window.open(
               `https://www.google.com/search?q=${encodeURIComponent(
                 selectedTab.searchQuery
@@ -1912,7 +1922,7 @@ kbd:hover {
               "_blank"
             );
             closeOverlay();
-          } else if (selectedTab && selectedTab.id) {
+          } else if (selectedTab?.id) {
             switchToTab(selectedTab.id);
           }
         }
@@ -1936,7 +1946,7 @@ kbd:hover {
     if (e.target !== state.host) {
       e.stopPropagation();
       e.preventDefault();
-      if (state.domCache && state.domCache.searchBox) {
+      if (state.domCache?.searchBox) {
         state.domCache.searchBox.focus();
       }
     }
@@ -1968,7 +1978,7 @@ kbd:hover {
 
       // Redirect key to our search box if it's a printable char or nav key?
       // Better: Just enforce focus. The user will have to type again, but at least it won't type on the page.
-      if (state.domCache && state.domCache.searchBox) {
+      if (state.domCache?.searchBox) {
         state.domCache.searchBox.focus();
       }
     }
@@ -2018,31 +2028,7 @@ kbd:hover {
     }
   }
 
-  function selectPrevious() {
-    try {
-      // Get current filtered tabs count
-      if (!state.filteredTabs || state.filteredTabs.length === 0) {
-        console.warn("[TAB SWITCHER] No tabs available for navigation");
-        return;
-      }
 
-      // Ensure selectedIndex is within valid range
-      if (
-        state.selectedIndex < 0 ||
-        state.selectedIndex >= state.filteredTabs.length
-      ) {
-        state.selectedIndex = state.filteredTabs.length - 1;
-      } else {
-        state.selectedIndex = state.selectedIndex - 1;
-        if (state.selectedIndex < 0) {
-          state.selectedIndex = state.filteredTabs.length - 1; // Wrap around to last tab
-        }
-      }
-      updateSelection();
-    } catch (error) {
-      console.error("[TAB SWITCHER] Error in selectPrevious:", error);
-    }
-  }
 
   function selectRight() {
     try {
@@ -2171,7 +2157,7 @@ kbd:hover {
       if (!grid) return;
       // Remove any stale selections currently in DOM
       const selectedEls = grid.querySelectorAll(".tab-card.selected");
-      selectedEls.forEach((el) => el.classList.remove("selected"));
+      selectedEls.forEach((el) => { el.classList.remove("selected"); });
       // Apply selection to the current index if present in DOM
       const target = grid.querySelector(
         `.tab-card[data-tab-index="${state.selectedIndex}"]`
@@ -2224,7 +2210,15 @@ kbd:hover {
 
       // Fire-and-forget to avoid message port errors if the service worker sleeps
       try {
-        chrome.runtime.sendMessage({ action: "switchToTab", tabId });
+        chrome.runtime.sendMessage({ action: "switchToTab", tabId }, () => {
+          // Check for lastError to suppress "Unchecked runtime.lastError"
+          if (chrome.runtime.lastError) {
+            console.debug(
+              "[TAB SWITCHER] SW not ready:",
+              chrome.runtime.lastError.message
+            );
+          }
+        });
       } catch (msgErr) {
         // Silently ignore; background may be restarting
         console.debug(
@@ -2244,8 +2238,15 @@ kbd:hover {
     try {
       if (!sessionId) return;
       try {
-        chrome.runtime.sendMessage({ action: "restoreSession", sessionId });
-      } catch (msgErr) {
+      chrome.runtime.sendMessage({ action: "restoreSession", sessionId }, () => {
+        if (chrome.runtime.lastError) {
+          console.debug(
+            "[TAB SWITCHER] SW not ready (restoreSession):",
+            chrome.runtime.lastError.message
+          );
+        }
+      });
+    } catch (msgErr) {
         console.debug(
           "[TAB SWITCHER] sendMessage warn:",
           msgErr?.message || msgErr
@@ -2311,7 +2312,7 @@ kbd:hover {
             return;
           }
 
-          if (response && response.success) {
+          if (response?.success) {
             // Remove from current list
             state.currentTabs = state.currentTabs.filter(
               (tab) => tab && tab.id !== tabId
@@ -2427,38 +2428,14 @@ kbd:hover {
 
     // Observe all lazy-load images
     const images = state.domCache.grid.querySelectorAll("img[data-src]");
-    images.forEach((img) => state.intersectionObserver.observe(img));
+    images.forEach((img) => { state.intersectionObserver.observe(img); });
   }
 
   // ============================================================================
   // UTILITY FUNCTIONS
   // ============================================================================
 
-  // Throttle function for performance
-  function throttle(func, wait) {
-    let timeout = null;
-    let previous = 0;
 
-    return function (...args) {
-      const now = Date.now();
-      const remaining = wait - (now - previous);
-
-      if (remaining <= 0 || remaining > wait) {
-        if (timeout) {
-          clearTimeout(timeout);
-          timeout = null;
-        }
-        previous = now;
-        func.apply(this, args);
-      } else if (!timeout) {
-        timeout = setTimeout(() => {
-          previous = Date.now();
-          timeout = null;
-          func.apply(this, args);
-        }, remaining);
-      }
-    };
-  }
 
   // ============================================================================
   // INITIALIZATION
@@ -2471,77 +2448,5 @@ kbd:hover {
   console.log("Target: <16ms interactions, 60fps, lazy loading");
   console.log("═══════════════════════════════════════════════════════");
 
-  // ===============================
-  // VIEW MODE HELPERS
-  // ===============================
-  function setViewMode(mode) {
-    state.viewMode = mode;
-    if (state.domCache && state.domCache.backBtn) {
-      state.domCache.backBtn.style.display =
-        mode === "recent" ? "flex" : "none";
-    }
-    if (state.domCache && state.domCache.recentBtn) {
-      state.domCache.recentBtn.style.display =
-        mode === "recent" ? "none" : "inline-flex";
-    }
-    // Placeholder text
-    if (state.domCache && state.domCache.searchBox) {
-      state.domCache.searchBox.placeholder =
-        mode === "recent"
-          ? "Search recently closed tabs..."
-          : "Search tabs by title or URL...";
-    }
-  }
 
-  async function switchToRecent() {
-    try {
-      setViewMode("recent");
-      // Fetch recently closed items
-      const items = await new Promise((resolve) => {
-        try {
-          chrome.runtime.sendMessage(
-            { action: "getRecentlyClosed", maxResults: 10 },
-            (res) => {
-              if (chrome.runtime.lastError) {
-                console.debug("[TAB SWITCHER] Runtime error:", chrome.runtime.lastError.message);
-                resolve([]);
-                return;
-              }
-              if (!res || !res.success) return resolve([]);
-              resolve(res.items || []);
-            }
-          );
-        } catch (err) {
-          resolve([]);
-        }
-      });
-      state.recentItems = items;
-      state.currentTabs = items; // reuse pipeline
-      state.filteredTabs = items;
-      state.selectedIndex = 0;
-      if (state.domCache.grid) state.domCache.grid.classList.add("recent-mode");
-      renderTabsStandard(items);
-      // focus search
-      if (state.domCache.searchBox) state.domCache.searchBox.focus();
-    } catch (e) {
-      console.debug("[TAB SWITCHER] Failed to load recently closed:", e);
-    }
-  }
-
-  function switchToActive() {
-    setViewMode("active");
-    state.currentTabs = state.activeTabs || [];
-    state.filteredTabs = state.currentTabs;
-    state.selectedIndex = 0;
-    if (state.domCache.grid) {
-      state.domCache.grid.classList.remove("recent-mode");
-      state.domCache.grid.classList.remove("search-mode");
-    }
-    if (state.currentTabs.length > 50) {
-      renderTabsVirtual(state.currentTabs);
-    } else {
-      renderTabsStandard(state.currentTabs);
-    }
-    state.domCache.searchBox.focus();
-  }
 })();
