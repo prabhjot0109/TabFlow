@@ -258,6 +258,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: auto;
 }
 
 .tab-switcher-grid::-webkit-scrollbar {
@@ -1054,6 +1055,7 @@ kbd:hover {
        <span><kbd>Enter</kbd> Switch</span>
        <span><kbd>Delete</kbd> Close</span>
        <span><kbd>.</kbd> Recent Tabs</span>
+       <span><kbd>?</kbd> Web Search</span>
        <span><kbd>Esc</kbd> Exit</span>
      `;
 		container.appendChild(helpText);
@@ -1195,6 +1197,7 @@ kbd:hover {
           <span><kbd>Enter</kbd> Switch</span>
           <span><kbd>Delete</kbd> Close</span>
           <span><kbd>.</kbd> Recent Tabs</span>
+          <span><kbd>?</kbd> Web Search</span>
           <span><kbd>Esc</kbd> Exit</span>
         `;
 			}
