@@ -29,8 +29,8 @@
   display: contents !important;
   
   /* CSS Custom Properties - Material 3 Dark Theme (Lighter) */
-  --bg-overlay: rgba(20, 20, 25, 0.8);
-  --bg-surface: #1e1e24;
+  --bg-overlay: rgba(76, 76, 80, 0.8);
+  --bg-surface: #202020;
   --bg-glass: #282830;
   --bg-glass-hover: #32323c;
   --border-subtle: #3a3a45;
