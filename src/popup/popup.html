@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser Tab Switch</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="header">
+      <img src="../../icons/icon48.png" class="logo" alt="Logo" />
+      <h1>Browser Tab Switch</h1>
+    </div>
+
+    <div class="shortcut-hero">
+      <kbd class="hero-key">Alt</kbd> <span class="plus">+</span>
+      <kbd class="hero-key">Q</kbd>
+    </div>
+    <div class="tagline">to activate and navigate through tabs</div>
+
+    <div class="section">
+      <ul class="key-list">
+        <li>
+          <div class="keys"><kbd>↑</kbd><kbd>↓</kbd></div>
+          <span>Navigate</span>
+        </li>
+        <li>
+          <div class="keys"><kbd>Enter</kbd></div>
+          <span>Switch Tab</span>
+        </li>
+        <li>
+          <div class="keys"><kbd>Delete</kbd></div>
+          <span>Close Tab</span>
+        </li>
+        <li>
+          <div class="keys"><kbd>?</kbd></div>
+          <span>Web Search</span>
+        </li>
+        <li>
+          <div class="keys"><kbd>.</kbd></div>
+          <span>Recently Closed</span>
+        </li>
+        <li>
+          <div class="keys"><kbd>/</kbd></div>
+          <span>Tab History</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="footer">
+      <a href="#" id="shortcutsLink">Customize Shortcut</a>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

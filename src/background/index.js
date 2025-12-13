@@ -746,6 +746,9 @@ async function handleShowTabSwitcher() {
   }
 }
 
+// Import content script via CRXJS special query to get output filename
+import contentScriptPath from "../content/index.js?script";
+
 // Send message with automatic script injection
 async function sendMessageWithRetry(tabId, message, retries = 1) {
   try {
@@ -755,11 +758,10 @@ async function sendMessageWithRetry(tabId, message, retries = 1) {
       console.log("[INJECT] Content script not ready, injecting...");
 
       try {
-        // Inject content script only - CSS is encapsulated in Shadow DOM
-        // DO NOT inject overlay.css here as it would apply global styles to the host page
+        // Inject content script using the dynamic path from CRXJS
         await chrome.scripting.executeScript({
           target: { tabId },
-          files: ["content.js"],
+          files: [contentScriptPath],
         });
 
         // Retry after injection
@@ -984,13 +986,31 @@ class TabHistoryTracker {
       let data = result[key] || { stack: [], currentIndex: -1 };
       const entry = { url, title: title || url };
 
+      // Helper to check equality
+      const isSameUrl = (e, u) => this.getEntryUrl(e) === u;
+
+      // 1. Check if we are ALREADY at this URL (race condition handling)
+      // If webNavigation fired first, currentIndex might already be updated.
+      // We just want to ensure the title is correct.
+      if (
+        data.currentIndex >= 0 &&
+        data.currentIndex < data.stack.length &&
+        isSameUrl(data.stack[data.currentIndex], url)
+      ) {
+        if (title) {
+          data.stack[data.currentIndex] = entry;
+          await this.storage.set({ [key]: data });
+        }
+        return;
+      }
+
       if (isBackForward) {
-        // Try to find the URL in the stack
+        // Try to find the URL in the stack near the current index
         let foundIndex = -1;
 
-        // Check backward
+        // Check backward from current
         for (let i = data.currentIndex - 1; i >= 0; i--) {
-          if (this.getEntryUrl(data.stack[i]) === url) {
+          if (isSameUrl(data.stack[i], url)) {
             foundIndex = i;
             break;
           }
@@ -999,7 +1019,7 @@ class TabHistoryTracker {
         // Check forward if not found
         if (foundIndex === -1) {
           for (let i = data.currentIndex + 1; i < data.stack.length; i++) {
-            if (this.getEntryUrl(data.stack[i]) === url) {
+            if (isSameUrl(data.stack[i], url)) {
               foundIndex = i;
               break;
             }
@@ -1008,12 +1028,13 @@ class TabHistoryTracker {
 
         if (foundIndex !== -1) {
           data.currentIndex = foundIndex;
-          // Update title if we have one
           if (title) {
             data.stack[foundIndex] = entry;
           }
         } else {
-          // Fallback: treat as new navigation
+          // Fallback: If we can't find it effectively, treat as new nav?
+          // Or just append if we assume the stack drifted.
+          // Appending is safer than leaving user stuck.
           if (
             data.currentIndex >= 0 &&
             data.currentIndex < data.stack.length - 1
@@ -1032,11 +1053,12 @@ class TabHistoryTracker {
           data.stack = data.stack.slice(0, data.currentIndex + 1);
         }
 
-        // Only push if it's different from current URL
+        // Only push if it's different from current URL (dedupe neighbors)
         const currentUrl =
           data.currentIndex >= 0
             ? this.getEntryUrl(data.stack[data.currentIndex])
             : null;
+
         if (currentUrl !== url) {
           data.stack.push(entry);
           data.currentIndex = data.stack.length - 1;

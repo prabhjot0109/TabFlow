@@ -1,5 +1,7 @@
 # ⚡ Visual Tab Switcher
 
+![Extension Preview](./preview.png)
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Chrome](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-grey.svg)
@@ -13,7 +15,7 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 
 ### 🎨 Stunning Visual Interface
 
-- **Glassmorphism Design**: Modern, frosted-glass overlay (Liquid Glass / Material 3) that integrates seamlessly with your browser.
+- **Material Design 3**: Modern, polished overlay that follows Material Design principles.
 - **Live Previews**: High-resolution thumbnail previews of all your open tabs.
 - **Theming**: Automatically adapts to **Light** and **Dark** system themes.
 - **Audio Indicators**: See which tabs are playing audio at a glance.
@@ -56,14 +58,20 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/prabhjot0109/tab_switcher_extension.git
+   cd tab_switcher_extension
    ```
-2. **Open Chrome Extensions**:
+2. **Install & Build**:
+   ```bash
+   bun install
+   bun run build
+   ```
+3. **Open Chrome Extensions**:
    - Go to `chrome://extensions/`
    - Toggle **Developer mode** in the top right.
-3. **Load Unpacked**:
+4. **Load Unpacked**:
    - Click **"Load unpacked"**.
-   - Select the `tab_switcher_extension` directory.
-4. **Setup**:
+   - Select the `dist` directory created by the build.
+5. **Setup**:
    - The extension is now active! Press `Alt + Q` to try it out.
 
 ---
@@ -72,10 +80,12 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 
 Built with modern **Manifest V3** standards for security and performance.
 
+- **Build System**: Powered by **Vite** and **Bun** for ultra-fast builds and modular development.
+- **Architecture**: Modular codebase split into specialized components (UI, Input, State, Actions) for better maintainability.
 - **Content Script**: Uses **Shadow DOM** to completely isolate extension styles from the host page, ensuring no broken layouts.
 - **Service Worker**: Manages tab state and handles background screenshotting.
 - **LRU Cache**: Implements a custom Least Recently Used cache with **IndexedDB persistence** to store tab screenshots efficiently (<50MB memory footprint).
-- **Performance**: Targeting 60fps animations and instant responsiveness even with 50+ tabs open.
+- **Performance**: Targeting 60fps animations and instant responsiveness even with 50+ tabs open (Virtual Scrolling).
 
 ---
 

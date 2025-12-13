@@ -12,14 +12,21 @@
     "webNavigation",
     "favicon"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
-    "service_worker": "src/background/index.js"
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/index.js"],
+      "js": [
+        "assets/index.js-166GCdh1.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -57,9 +64,23 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["_favicon/*"],
-      "matches": ["<all_urls>"],
-      "extension_ids": ["*"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "resources": [
+        "_favicon/*"
+      ],
+      "use_dynamic_url": false
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "resources": [
+        "assets/index.js-166GCdh1.js"
+      ],
+      "use_dynamic_url": false
     }
   ]
 }
