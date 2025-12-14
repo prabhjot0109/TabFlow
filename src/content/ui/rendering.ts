@@ -322,69 +322,62 @@ export function createTabCard(tab: Tab, index: number) {
 function createGroupHeaderCard(tab: Tab, index: number) {
   const container = document.createElement("div");
   container.className = "tab-card group-header-card";
-  container.dataset.groupId = String(tab.groupId);
+  const groupId = tab.groupId ?? -1;
+  const groupIdStr = String(groupId);
+  container.dataset.groupId = groupIdStr;
   container.dataset.tabIndex = String(index);
-  container.dataset.collapsed = state.collapsedGroups.has(tab.groupId)
-    ? "true"
-    : "false";
 
-  // Style properties
-  container.style.borderLeft = `6px solid ${tab.groupColor}`;
-  container.style.background = `linear-gradient(to right, ${tab.groupColor}11, transparent)`; // Subtle tint
+  const isCollapsed = groupId !== -1 && state.collapsedGroups.has(groupId);
+  container.dataset.collapsed = isCollapsed ? "true" : "false";
+
+  // Apply dynamic group color via inline style (only dynamic part)
+  const color = tab.groupColor || "var(--border-subtle)";
+  container.style.setProperty("--group-color", color);
+  container.style.borderLeft = `6px solid ${color}`;
+  container.style.border = `1px solid ${color}44`;
+  container.style.borderLeftWidth = "6px";
+  container.style.background = `linear-gradient(to right, ${color}33, ${color}08)`;
 
   if (index === state.selectedIndex) {
     container.classList.add("selected");
   }
 
+  // Content container - uses CSS class for layout
   const content = document.createElement("div");
   content.className = "group-header-content";
-  content.style.display = "flex";
-  content.style.alignItems = "center";
-  content.style.justifyContent = "space-between";
-  content.style.width = "100%";
-  content.style.padding = "0 16px";
 
+  // LEFT SIDE: Title + Count - uses CSS classes
   const left = document.createElement("div");
-  left.style.display = "flex";
-  left.style.alignItems = "center";
-  left.style.gap = "12px";
+  left.className = "group-header-left";
 
   const title = document.createElement("span");
+  title.className = "group-header-title";
   title.textContent = tab.groupTitle || "Untitled Group";
-  title.style.fontWeight = "600";
-  title.style.fontSize = "14px";
-  title.style.color = "var(--text-primary, #e8eaed)";
 
   const countBadge = document.createElement("span");
-  // Find count - expensive search?
-  const count = state.currentTabs.filter(
-    (t) => t.groupId === tab.groupId
-  ).length;
-  countBadge.textContent = `${count} tabs`;
-  countBadge.style.fontSize = "12px";
-  countBadge.style.opacity = "0.7";
+  countBadge.className = "group-header-count";
+  const count = state.currentTabs.filter((t) => t.groupId === groupId).length;
+  countBadge.textContent = `(${count} tabs)`;
 
   left.appendChild(title);
   left.appendChild(countBadge);
 
+  // RIGHT SIDE: State Text + Chevron - uses CSS classes
   const right = document.createElement("div");
+  right.className = "group-header-right";
+
+  const stateText = document.createElement("span");
+  stateText.className = "group-header-state";
+  stateText.textContent = isCollapsed ? "Collapsed" : "Expanded";
+  stateText.style.color = color; // Dynamic color for state text
+
   const chevron = document.createElement("span");
-  chevron.innerHTML = state.collapsedGroups.has(tab.groupId)
-    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>' // Checkpoint/Down? Actually Right if collapsed?
-    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+  chevron.className = "group-header-chevron";
+  // Always use down chevron - CSS handles rotation for collapsed state
+  chevron.innerHTML =
+    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 
-  // Actually standard UX: Chevron Right = Collapsed, Chevron Down = Expanded.
-  // Let's swap
-  if (state.collapsedGroups.has(tab.groupId)) {
-    // Collapsed -> Show Right Chevron?
-    // Usually headers simply toggle.
-    chevron.innerHTML =
-      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'; // Right
-  } else {
-    chevron.innerHTML =
-      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>'; // Down
-  }
-
+  right.appendChild(stateText);
   right.appendChild(chevron);
 
   content.appendChild(left);
@@ -394,7 +387,9 @@ function createGroupHeaderCard(tab: Tab, index: number) {
   // Click handler
   container.onclick = (e) => {
     e.stopPropagation();
-    toggleGroupCollapse(tab.groupId);
+    if (groupId !== -1) {
+      toggleGroupCollapse(groupId);
+    }
   };
 
   return container;
@@ -516,46 +511,53 @@ export function applyGroupViewTransformation(tabs: Tab[]): Tab[] {
   const result: Tab[] = [];
   const seenGroups = new Set<number>();
 
+  // STEP 1: First, identify all groups that have tabs in the current list
+  // This ensures we show ALL group headers, not just the ones whose tabs appear early
+  const groupsWithTabs = new Map<number, Tab[]>();
   for (const tab of tabs) {
-    // If tab is in a group
     if (tab.groupId && tab.groupId !== -1) {
-      if (seenGroups.has(tab.groupId)) {
-        // Already processed this group
-        continue;
+      if (!groupsWithTabs.has(tab.groupId)) {
+        groupsWithTabs.set(tab.groupId, []);
       }
+      groupsWithTabs.get(tab.groupId)!.push(tab);
+    }
+  }
 
-      // First time seeing this group: process it
-      seenGroups.add(tab.groupId);
+  // STEP 2: Add ALL group headers at the top of the result first
+  // This ensures group headers are ALWAYS visible by default, regardless of tab access order
+  for (const [groupId, members] of groupsWithTabs) {
+    if (seenGroups.has(groupId)) continue;
+    seenGroups.add(groupId);
 
-      const group = state.groups.find((g) => g.id === tab.groupId);
-      if (!group) {
-        // Group metadata missing, treat as normal
-        result.push(tab);
-        continue;
-      }
+    const group = state.groups.find((g) => g.id === groupId);
+    const groupColor = group
+      ? getGroupColor(group.color)
+      : "var(--border-subtle)";
+    const groupTitle = group?.title || "Group";
 
-      // 1. Add Group Header
-      const header: Tab = {
-        id: -1 * tab.groupId, // Negative ID to avoid collision
-        isGroupHeader: true,
-        groupId: tab.groupId,
-        groupColor: getGroupColor(group.color),
-        groupTitle: group.title,
-        title: group.title, // For search logic if needed
-        url: "",
-        active: false,
-      };
-      result.push(header);
+    // Add Group Header
+    const header: Tab = {
+      id: -1 * groupId, // Negative ID to avoid collision
+      isGroupHeader: true,
+      groupId: groupId,
+      groupColor: groupColor,
+      groupTitle: groupTitle,
+      title: groupTitle,
+      url: "",
+      active: false,
+    };
+    result.push(header);
 
-      // 2. Add Group Members (unless collapsed)
-      const isCollapsed = state.collapsedGroups.has(tab.groupId);
-      if (!isCollapsed) {
-        // Find all members in the ORIGINAL list to preserve their data
-        const members = tabs.filter((t) => t.groupId === tab.groupId);
-        result.push(...members);
-      }
-    } else {
-      // Ungrouped tab
+    // Add Group Members (unless collapsed)
+    const isCollapsed = state.collapsedGroups.has(groupId);
+    if (!isCollapsed) {
+      result.push(...members);
+    }
+  }
+
+  // STEP 3: Add ungrouped tabs after all groups
+  for (const tab of tabs) {
+    if (!tab.groupId || tab.groupId === -1) {
       result.push(tab);
     }
   }

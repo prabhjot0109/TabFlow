@@ -245,8 +245,8 @@ export function showTabSwitcher(tabs, activeTabId, groups = []) {
 
   state.activeTabs = tabs;
   state.currentTabs = tabs;
+  state.groups = groups; // MUST be set before applyGroupViewTransformation
   state.filteredTabs = applyGroupViewTransformation(tabs);
-  state.groups = groups;
   setViewMode("active");
 
   // Start selection at the second tab (most recently used that isn't current)
@@ -263,11 +263,15 @@ export function showTabSwitcher(tabs, activeTabId, groups = []) {
   }
 
   // Determine rendering strategy based on tab count
-  if (tabs.length > 50) {
-    console.log("[PERF] Using virtual scrolling for", tabs.length, "tabs");
-    renderTabsVirtual(tabs);
+  if (state.filteredTabs.length > 50) {
+    console.log(
+      "[PERF] Using virtual scrolling for",
+      state.filteredTabs.length,
+      "tabs"
+    );
+    renderTabsVirtual(state.filteredTabs);
   } else {
-    renderTabsStandard(tabs);
+    renderTabsStandard(state.filteredTabs);
   }
 
   // Make visible immediately to allow focus and event trapping
@@ -280,6 +284,11 @@ export function showTabSwitcher(tabs, activeTabId, groups = []) {
   if (state.domCache.searchBox) {
     state.domCache.searchBox.value = "";
     state.domCache.searchBox.focus();
+  }
+
+  // Scroll to top by default
+  if (state.domCache.grid) {
+    state.domCache.grid.scrollTop = 0;
   }
 
   // Animate opacity using RAF

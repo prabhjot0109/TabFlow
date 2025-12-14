@@ -2,7 +2,7 @@
 
 ![Extension Preview](./preview.png)
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Chrome](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-grey.svg)
 
@@ -15,10 +15,18 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 
 ### 🎨 Stunning Visual Interface
 
-- **Material Design 3**: Modern, polished overlay that follows Material Design principles.
+- **Material Design 3**: Modern, polished overlay following Material Design 3 principles with glassmorphism effects.
 - **Live Previews**: High-resolution thumbnail previews of all your open tabs.
 - **Theming**: Automatically adapts to **Light** and **Dark** system themes.
-- **Audio Indicators**: See which tabs are playing audio at a glance.
+- **Audio Indicators**: See which tabs are playing audio at a glance with mute/unmute controls.
+- **Consistent Styling**: Uses Shadow DOM to ensure the UI looks perfect on every website, regardless of the host page's styles.
+
+### 📂 Tab Groups Support
+
+- **Visual Group Headers**: Chrome Tab Groups are displayed with collapsible header cards showing the group name and color.
+- **Collapse/Expand Groups**: Press `Enter` on a group header to toggle its collapsed state, or click the toggle button.
+- **Group Color Indicators**: Each group is highlighted with its assigned color for quick visual identification.
+- **Smart Grouping**: Tabs are automatically organized under their respective group headers.
 
 ### 🚀 High-Performance Navigation
 
@@ -26,11 +34,13 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 - **Fuzzy Search**: Rapidly find tabs by title or URL. Just start typing.
 - **Smart Sorting**: Tabs are automatically sorted by **Recency**, so your last-used tab is always just one click away.
 - **Input Isolation**: Advanced event handling ensures your keystrokes stay within the switcher, preventing accidental input on the underlying page.
+- **Virtual Scrolling**: Handles 50+ tabs with smooth 60fps animations.
 
 ### ⌨️ Power User Shortcuts
 
-- **Tab History**: Navigate back/forward in a specific tab's history directly from the switcher.
-- **Restore Closed**: Quickly find and restore recently closed tabs.
+- **Tab History**: Navigate back/forward in a specific tab's history directly from the switcher using `,`.
+- **Restore Closed Tabs**: Quickly find and restore recently closed tabs with `.`.
+- **Web Search**: Start a web search directly from the switcher with `?`.
 - **Keyboard First**: Fully navigable via keyboard, but mouse-friendly too.
 
 ---
@@ -40,10 +50,10 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 | Key                            | Action                                         |
 | :----------------------------- | :--------------------------------------------- |
 | **`Alt` + `Q`**                | **Open Switcher** (Customizable to `Ctrl+Tab`) |
-| **`Tab`** / **Arrows**         | Navigate between tabs                          |
-| **`Enter`**                    | Switch to selected tab                         |
+| **`↑`** / **`↓`**              | Navigate between tabs                          |
+| **`Enter`**                    | Switch to selected tab / Toggle group collapse |
 | **`Delete`** / **`Backspace`** | Close selected tab                             |
-| **`,`**                        | View Tab History (Back/Forward)                |
+| **`,`**                        | View Tab History (Back/Forward navigation)     |
 | **`.`**                        | View Recently Closed Tabs                      |
 | **`?`** (Shift + /)            | Web Search                                     |
 | **`Esc`**                      | Close Switcher                                 |
@@ -82,20 +92,27 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 Built with modern **Manifest V3** standards for security and performance.
 
 - **Build System**: Powered by **Vite** and **Bun** for ultra-fast builds and modular development.
-- **Architecture**: Modular codebase split into specialized components (UI, Input, State, Actions) for better maintainability.
-- **Content Script**: Uses **Shadow DOM** to completely isolate extension styles from the host page, ensuring no broken layouts.
-- **Service Worker**: Manages tab state and handles background screenshotting.
-- **LRU Cache**: Implements a custom Least Recently Used cache with **IndexedDB persistence** to store tab screenshots efficiently (<50MB memory footprint).
-- **Performance**: Targeting 60fps animations and instant responsiveness even with 50+ tabs open (Virtual Scrolling).
+- **TypeScript**: Fully typed codebase for better maintainability and developer experience.
+- **Modular Architecture**: Codebase split into specialized modules:
+  - `content/ui/` - Rendering and overlay management
+  - `content/input/` - Keyboard and focus handling
+  - `content/actions.ts` - Core actions (switch, close, mute, group operations)
+  - `content/state.ts` - Centralized state management
+  - `background/` - Service worker for tab management and screenshotting
+- **Shadow DOM Isolation**: Completely isolates extension styles from the host page, preventing layout conflicts.
+- **Service Worker**: Manages tab state, captures screenshots, and handles background operations.
+- **LRU Cache**: Custom Least Recently Used cache with **IndexedDB persistence** for efficient screenshot storage (<50MB memory footprint).
+- **Virtual Scrolling**: Optimized rendering for 50+ tabs with smooth 60fps animations.
 
 ---
 
 ## 🗺️ Roadmap & Improvements
 
-- [ ] **Tab Groups**: Visual indicators and filtering for Chrome Tab Groups.
+- [x] ~~**Tab Groups**: Visual indicators and filtering for Chrome Tab Groups.~~ ✅ **Implemented!**
 - [ ] **Cloud Sync**: Sync your preferences across devices.
-- [ ] **Multi-Window**: enhanced support for managing tabs across multiple windows.
+- [ ] **Multi-Window**: Enhanced support for managing tabs across multiple windows.
 - [ ] **Stats Dashboard**: Visualize your browsing habits.
+- [ ] **Custom Themes**: User-defined color schemes and styles.
 
 ---
 
@@ -108,6 +125,27 @@ Contributions are welcome! Please follow these steps:
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
 4. Push to the branch (`git push origin feature/AmazingFeature`).
 5. Open a Pull Request.
+
+---
+
+## 📝 Changelog
+
+### v1.1.0
+
+- ✨ **Tab Groups Support**: Full Chrome Tab Groups integration with collapsible group headers
+- 🎨 **Material Design 3 UI**: Improved visual design with glassmorphism effects
+- 🔒 **Enhanced Input Isolation**: Better keystroke handling to prevent input leakage to host pages
+- 🐛 **Stability Improvements**: Fixed flickering issues and improved overlay lifecycle management
+- ⚡ **Shadow DOM CSS**: More robust styling that works consistently across all websites
+
+### v1.0.0
+
+- Initial release with core tab switching functionality
+- Tab preview thumbnails
+- Fuzzy search
+- Tab history navigation
+- Recently closed tabs restoration
+- Web search integration
 
 ---
 

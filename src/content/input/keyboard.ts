@@ -8,6 +8,7 @@ import {
   switchToActive,
   switchToRecent,
   createGroup,
+  toggleGroupCollapse,
 } from "../actions";
 import {
   updateSelection,
@@ -213,6 +214,33 @@ export function handleKeyDown(e) {
         ) {
           const selectedTab = state.filteredTabs[state.selectedIndex];
           if (selectedTab) {
+            // Handle Group Header Enter Key
+            if (selectedTab.isGroupHeader) {
+              // Assuming toggleGroupCollapse is available (we need to import it or dispatch action)
+              // It updates state and re-renders, keeping overlay open.
+              // We need to import toggleGroupCollapse from ../actions or use chrome.runtime?
+              // Ideally import from actions.
+              // But wait, toggleGroupCollapse is in actions.ts, and actions.ts imports keyboard.ts... circular dependency?
+              // actions.ts imports keyboard.ts handlers.
+              // keyboard.ts imports actions.ts actions.
+              // This circular dependency exists in the file header:
+              // import { ..., toggleGroupCollapse } from "../actions"; (Is it imported?)
+              // Let's check imports.
+              // It IS imported (or I need to add it).
+
+              // But wait, toggleGroupCollapse relies on state? yes.
+              // Check imports in keyboard.ts
+              // It imports actions. Let's assume it's safe to use or add if missing.
+
+              // But wait, we need to send message or call function?
+              // Ideally call function directly if in same context.
+              // In Step 35 view, I see imports: closeOverlay, switchToTab... createGroup...
+              // I need to add `toggleGroupCollapse` to valid imports.
+
+              toggleGroupCollapse(selectedTab.groupId!);
+              return;
+            }
+
             if (state.viewMode === "recent" && selectedTab.sessionId) {
               restoreSession(selectedTab.sessionId);
             } else if (selectedTab.id) {
@@ -418,6 +446,13 @@ export function handleSearchKeydown(e) {
         state.selectedIndex < state.filteredTabs.length
       ) {
         const selectedTab = state.filteredTabs[state.selectedIndex];
+
+        // Handle Group Header Enter Key in Search Mode
+        if (selectedTab.isGroupHeader) {
+          toggleGroupCollapse(selectedTab.groupId!);
+          return;
+        }
+
         if (state.viewMode === "recent" && selectedTab?.sessionId) {
           restoreSession(selectedTab.sessionId);
         } else if (selectedTab?.isWebSearch) {
@@ -428,7 +463,8 @@ export function handleSearchKeydown(e) {
             "_blank"
           );
           closeOverlay();
-        } else if (selectedTab?.id) {
+        } else if (selectedTab?.id && selectedTab.id >= 0) {
+          // Ensure positive ID
           switchToTab(selectedTab.id);
         }
       }

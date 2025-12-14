@@ -23,7 +23,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-DxkdQ6Si.js"
+        "assets/index.ts-ClGHx5vK.js"
       ],
       "matches": [
         "<all_urls>"
@@ -79,7 +79,7 @@
         "https://*/*"
       ],
       "resources": [
-        "assets/index.ts-DxkdQ6Si.js"
+        "assets/index.ts-ClGHx5vK.js"
       ],
       "use_dynamic_url": false
     }
