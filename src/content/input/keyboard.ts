@@ -16,9 +16,9 @@ import {
   activateSelectedHistoryItem,
 } from "../ui/rendering";
 
-export function handleGridClick(e) {
+export function handleGridClick(e: MouseEvent) {
   try {
-    const target = e.target;
+    const target = e.target as HTMLElement;
 
     // Handle close button
     if (
@@ -27,10 +27,10 @@ export function handleGridClick(e) {
     ) {
       e.stopPropagation();
       const tabId = parseInt(
-        target.dataset.tabId || target.parentElement.dataset.tabId
+        target.dataset.tabId || target.parentElement!.dataset.tabId || "0"
       );
       const index = parseInt(
-        target.dataset.tabIndex || target.parentElement.dataset.tabIndex
+        target.dataset.tabIndex || target.parentElement!.dataset.tabIndex || "0"
       );
 
       if (tabId && !Number.isNaN(tabId)) {
@@ -42,8 +42,8 @@ export function handleGridClick(e) {
     // Handle mute button
     if (target.dataset.action === "mute" || target.closest(".tab-mute-btn")) {
       e.stopPropagation();
-      const btn = target.closest(".tab-mute-btn");
-      const tabId = parseInt(btn.dataset.tabId);
+      const btn = target.closest(".tab-mute-btn") as HTMLElement;
+      const tabId = parseInt(btn.dataset.tabId || "0");
 
       if (tabId && !Number.isNaN(tabId)) {
         toggleMute(tabId, btn);
@@ -52,7 +52,7 @@ export function handleGridClick(e) {
     }
 
     // Handle tab card click
-    const tabCard = target.closest(".tab-card");
+    const tabCard = target.closest(".tab-card") as HTMLElement;
     if (tabCard) {
       if (state.viewMode === "recent" || tabCard.dataset.recent === "1") {
         const sessionId = tabCard.dataset.sessionId;
@@ -72,7 +72,7 @@ export function handleGridClick(e) {
         }
         return;
       }
-      const tabId = parseInt(tabCard.dataset.tabId);
+      const tabId = parseInt(tabCard.dataset.tabId || "0");
       if (tabId && !Number.isNaN(tabId)) {
         switchToTab(tabId);
       } else {
@@ -93,7 +93,7 @@ function isHistoryModeActive() {
   return v.trim().startsWith(",");
 }
 
-export function handleKeyDown(e) {
+export function handleKeyDown(e: KeyboardEvent) {
   if (!state.isOverlayVisible) return;
 
   const isInSearchBox = e.target === state.domCache.searchBox;
@@ -253,9 +253,9 @@ export function handleKeyDown(e) {
       case "Tab":
         e.preventDefault();
         if (e.shiftKey) {
-          selectUp();
+          selectPrevious();
         } else {
-          selectDown();
+          selectNext();
         }
         break;
 
@@ -322,7 +322,7 @@ export function handleKeyUp() {
   // Reserved for future use
 }
 
-export function handleSearchKeydown(e) {
+export function handleSearchKeydown(e: KeyboardEvent) {
   try {
     // In history mode, let the main handleKeyDown deal with navigation
     const isInHistoryMode = isHistoryModeActive() && state.history.active;
@@ -335,6 +335,8 @@ export function handleSearchKeydown(e) {
     ];
     if (isInHistoryMode && historyNavKeys.includes(e.key)) {
       // Don't handle here - let it bubble to handleKeyDown
+      // But prevent default to stop cursor movement in input
+      e.preventDefault();
       return;
     }
 
@@ -358,7 +360,7 @@ export function handleSearchKeydown(e) {
     }
     // '.' toggles between Active and Recently Closed when input empty
     if (e.key === ".") {
-      const val = e.target.value || "";
+      const val = (e.target as HTMLInputElement).value || "";
       if (val.length === 0) {
         e.preventDefault();
         if (state.viewMode === "recent") {
@@ -371,7 +373,7 @@ export function handleSearchKeydown(e) {
     }
     // Backspace: if empty in recent mode, go back to active
     if (e.key === "Backspace") {
-      const val = e.target.value || "";
+      const val = (e.target as HTMLInputElement).value || "";
       if (val.length === 0 && state.viewMode === "recent") {
         e.preventDefault();
         switchToActive();
@@ -401,10 +403,10 @@ export function handleSearchKeydown(e) {
       e.preventDefault();
       if (e.shiftKey) {
         // Shift+Tab: Move to previous (up)
-        selectUp();
+        selectPrevious();
       } else {
         // Tab: Move to next (down)
-        selectDown();
+        selectNext();
       }
       return;
     }
@@ -458,7 +460,7 @@ export function handleSearchKeydown(e) {
         } else if (selectedTab?.isWebSearch) {
           window.open(
             `https://www.google.com/search?q=${encodeURIComponent(
-              selectedTab.searchQuery
+              selectedTab.searchQuery!
             )}`,
             "_blank"
           );
@@ -475,164 +477,39 @@ export function handleSearchKeydown(e) {
   }
 }
 
-function getGridColumns() {
-  // Compute columns from actual card width and grid gap for accuracy
-  if (!state.domCache.grid) return 1;
-  const grid = state.domCache.grid;
-  const cards = grid.querySelectorAll(".tab-card");
-  if (cards.length === 0) return 1;
-  const style = window.getComputedStyle(grid);
-  const gap = parseFloat(style.columnGap) || 0;
-  const gridWidth = grid.clientWidth || grid.offsetWidth || 0;
-  const cardWidth = cards[0].clientWidth || cards[0].offsetWidth || 0;
-  if (!gridWidth || !cardWidth) return 1;
-  const cols = Math.max(1, Math.floor((gridWidth + gap) / (cardWidth + gap)));
-  return cols;
-}
-
+// Simple linear navigation - next item
 export function selectNext() {
-  try {
-    // Get current filtered tabs count
-    if (!state.filteredTabs || state.filteredTabs.length === 0) {
-      console.warn("[TAB SWITCHER] No tabs available for navigation");
-      return;
-    }
-
-    // Ensure selectedIndex is within valid range
-    if (
-      state.selectedIndex < 0 ||
-      state.selectedIndex >= state.filteredTabs.length
-    ) {
-      state.selectedIndex = 0;
-    } else {
-      state.selectedIndex = state.selectedIndex + 1;
-      if (state.selectedIndex >= state.filteredTabs.length) {
-        state.selectedIndex = 0; // Wrap around to first tab
-      }
-    }
-    updateSelection();
-  } catch (error) {
-    console.error("[TAB SWITCHER] Error in selectNext:", error);
+  if (!state.filteredTabs || state.filteredTabs.length === 0) return;
+  state.selectedIndex++;
+  if (state.selectedIndex >= state.filteredTabs.length) {
+    state.selectedIndex = 0;
   }
+  updateSelection();
 }
 
-function selectRight() {
-  try {
-    if (!state.filteredTabs || state.filteredTabs.length === 0) {
-      console.warn("[TAB SWITCHER] No tabs available for navigation");
-      return;
-    }
-
-    const columnCount = getGridColumns();
-    const newIndex = state.selectedIndex + 1;
-
-    // If moving right would keep us in the same row, move right
-    if (
-      Math.floor(newIndex / columnCount) ===
-      Math.floor(state.selectedIndex / columnCount)
-    ) {
-      if (newIndex < state.filteredTabs.length) {
-        state.selectedIndex = newIndex;
-      } else {
-        // At the end of the row, wrap to first column
-        const rowStart =
-          Math.floor(state.selectedIndex / columnCount) * columnCount;
-        state.selectedIndex = rowStart; // Go to start of current row
-      }
-    } else {
-      // Would move to next row, wrap to beginning of current row instead
-      const rowStart =
-        Math.floor(state.selectedIndex / columnCount) * columnCount;
-      state.selectedIndex = rowStart;
-    }
-
-    updateSelection();
-  } catch (error) {
-    console.error("[TAB SWITCHER] Error in selectRight:", error);
+// Simple linear navigation - previous item
+export function selectPrevious() {
+  if (!state.filteredTabs || state.filteredTabs.length === 0) return;
+  state.selectedIndex--;
+  if (state.selectedIndex < 0) {
+    state.selectedIndex = state.filteredTabs.length - 1;
   }
+  updateSelection();
 }
 
-function selectLeft() {
-  try {
-    if (!state.filteredTabs || state.filteredTabs.length === 0) {
-      console.warn("[TAB SWITCHER] No tabs available for navigation");
-      return;
-    }
-
-    const columnCount = getGridColumns();
-    const rowStart =
-      Math.floor(state.selectedIndex / columnCount) * columnCount;
-    const colInRow = state.selectedIndex - rowStart;
-
-    if (colInRow > 0) {
-      // Not at the start of row, move left within the row
-      state.selectedIndex = state.selectedIndex - 1;
-    } else {
-      // At the start of row, wrap to end of row
-      const rowEnd = Math.min(
-        rowStart + columnCount - 1,
-        state.filteredTabs.length - 1
-      );
-      state.selectedIndex = rowEnd;
-    }
-
-    updateSelection();
-  } catch (error) {
-    console.error("[TAB SWITCHER] Error in selectLeft:", error);
-  }
-}
-
+// All arrow keys use simple linear navigation
 function selectDown() {
-  try {
-    if (!state.filteredTabs || state.filteredTabs.length === 0) {
-      console.warn("[TAB SWITCHER] No tabs available for navigation");
-      return;
-    }
-
-    const columnCount = getGridColumns();
-    const currentRow = Math.floor(state.selectedIndex / columnCount);
-    const colInRow = state.selectedIndex - currentRow * columnCount;
-    const nextIndex = (currentRow + 1) * columnCount + colInRow;
-
-    if (nextIndex < state.filteredTabs.length) {
-      state.selectedIndex = nextIndex;
-    } else {
-      // Wrap to first item
-      state.selectedIndex = 0;
-    }
-
-    updateSelection();
-  } catch (error) {
-    console.error("[TAB SWITCHER] Error in selectDown:", error);
-  }
+  selectNext();
 }
 
 function selectUp() {
-  try {
-    if (!state.filteredTabs || state.filteredTabs.length === 0) {
-      console.warn("[TAB SWITCHER] No tabs available for navigation");
-      return;
-    }
+  selectPrevious();
+}
 
-    const columnCount = getGridColumns();
-    const currentRow = Math.floor(state.selectedIndex / columnCount);
-    const colInRow = state.selectedIndex - currentRow * columnCount;
+function selectRight() {
+  selectNext();
+}
 
-    if (currentRow > 0) {
-      // Move to previous row, same column
-      state.selectedIndex = (currentRow - 1) * columnCount + colInRow;
-    } else {
-      // Wrap to last row, same column
-      const totalRows = Math.ceil(state.filteredTabs.length / columnCount);
-      const lastRowIndex = (totalRows - 1) * columnCount + colInRow;
-      state.selectedIndex = Math.min(
-        lastRowIndex,
-        state.filteredTabs.length - 1
-      );
-    }
-
-    updateSelection();
-  } catch (error) {
-    console.error("[TAB SWITCHER] Error in selectUp:", error);
-  }
+function selectLeft() {
+  selectPrevious();
 }

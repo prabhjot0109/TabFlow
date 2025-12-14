@@ -231,15 +231,9 @@ export function createTabCard(tab: Tab, index: number) {
 
     thumbnail.appendChild(img);
   } else {
-    // Show favicon OR Smart Placeholder
-    const placeholder = getDomainPlaceholder(tab);
-    if (placeholder) {
-      thumbnail.appendChild(placeholder);
-      tabCard.classList.add("has-placeholder");
-    } else {
-      const faviconTile = createFaviconTile(tab);
-      thumbnail.appendChild(faviconTile);
-    }
+    // Show favicon tile - simple and consistent
+    const faviconTile = createFaviconTile(tab);
+    thumbnail.appendChild(faviconTile);
   }
 
   tabCard.appendChild(thumbnail);
@@ -252,18 +246,30 @@ export function createTabCard(tab: Tab, index: number) {
   const header = document.createElement("div");
   header.className = "tab-header";
 
-  // Show favicon in header only if we have a screenshot or placeholder (so it appears with URL)
-  if (
-    tab.favIconUrl &&
-    (hasValidScreenshot || tabCard.classList.contains("has-placeholder"))
-  ) {
-    const favicon = document.createElement("img");
-    favicon.src = tab.favIconUrl;
-    favicon.className = "tab-favicon";
-    favicon.onerror = () => {
-      favicon.style.display = "none";
-    };
-    header.appendChild(favicon);
+  // Show favicon in header if we have a screenshot (favicon already shown in tile otherwise)
+  if (hasValidScreenshot) {
+    // Get favicon URL - use Chrome's favicon API if favIconUrl not available
+    let faviconUrl = tab.favIconUrl;
+    if (!faviconUrl && tab.url) {
+      try {
+        const favUrl = new URL(chrome.runtime.getURL("/_favicon/"));
+        favUrl.searchParams.set("pageUrl", tab.url);
+        favUrl.searchParams.set("size", "16");
+        faviconUrl = favUrl.toString();
+      } catch {
+        // Ignore URL parsing errors
+      }
+    }
+
+    if (faviconUrl) {
+      const favicon = document.createElement("img");
+      favicon.src = faviconUrl;
+      favicon.className = "tab-favicon";
+      favicon.onerror = () => {
+        favicon.style.display = "none";
+      };
+      header.appendChild(favicon);
+    }
   }
 
   const title = document.createElement("div");
@@ -294,8 +300,8 @@ export function createTabCard(tab: Tab, index: number) {
 
   info.appendChild(header);
 
-  // URL (only for screenshots or placeholders)
-  if (hasValidScreenshot || tabCard.classList.contains("has-placeholder")) {
+  // URL (only for screenshots where we display more detail)
+  if (hasValidScreenshot) {
     const url = document.createElement("div");
     url.className = "tab-url";
     url.textContent = tab.url;
@@ -395,16 +401,30 @@ function createGroupHeaderCard(tab: Tab, index: number) {
   return container;
 }
 
-// Create favicon tile
+// Create favicon tile - simple approach using Chrome's favicon API
 export function createFaviconTile(tab: Tab) {
   const faviconTile = document.createElement("div");
   faviconTile.className = "favicon-tile";
 
-  if (tab.favIconUrl) {
+  // Use Chrome's favicon API if we have a URL
+  let faviconUrl = tab.favIconUrl;
+  if (!faviconUrl && tab.url) {
+    try {
+      const favUrl = new URL(chrome.runtime.getURL("/_favicon/"));
+      favUrl.searchParams.set("pageUrl", tab.url);
+      favUrl.searchParams.set("size", "32");
+      faviconUrl = favUrl.toString();
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }
+
+  if (faviconUrl) {
     const favicon = document.createElement("img");
-    favicon.src = tab.favIconUrl;
+    favicon.src = faviconUrl;
     favicon.className = "favicon-large";
     favicon.onerror = () => {
+      // Simple letter fallback - no gradients
       favicon.style.display = "none";
       const letter = document.createElement("div");
       letter.className = "favicon-letter";
@@ -413,6 +433,7 @@ export function createFaviconTile(tab: Tab) {
     };
     faviconTile.appendChild(favicon);
   } else {
+    // Simple letter fallback - no gradients
     const letter = document.createElement("div");
     letter.className = "favicon-letter";
     letter.textContent = (tab.title || "T")[0].toUpperCase();
@@ -420,89 +441,6 @@ export function createFaviconTile(tab: Tab) {
   }
 
   return faviconTile;
-}
-
-// Generate a beautiful placeholder for restricted URLs
-function getDomainPlaceholder(tab: Tab): HTMLElement | null {
-  if (!tab.url) return null;
-
-  // Check for restricted schemes or specific domains
-  const protectedSchemes = [
-    "chrome://",
-    "edge://",
-    "devtools://",
-    "view-source:",
-    "about:",
-  ];
-  const isProtected = protectedSchemes.some((s) => tab.url.startsWith(s));
-
-  // Also optional: Check for specific domains like mail.google.com if screenshot is missing
-  const urlObj = new URL(tab.url);
-  const domain = urlObj.hostname;
-
-  // Logic: If it's active tab, we shouldn't use placeholder unless we failed to capture.
-  // The caller determines if we show this (e.g. if screenshot is null).
-
-  if (!isProtected && !domain.includes("google.com")) {
-    // For normal sites, let createFaviconTile handle it if we have no screenshot.
-    // But user asked for "Fallback: ... generate a beautiful Placeholder ... for restricted URLs".
-    // The user specifically mentioned "high-res Gmail logo... restricted URLs".
-    // So I'll apply this primarily for known services and protected pages.
-    return null;
-  }
-
-  const placeholder = document.createElement("div");
-  placeholder.className = "tab-placeholder";
-  placeholder.style.width = "100%";
-  placeholder.style.height = "100%";
-  placeholder.style.display = "flex";
-  placeholder.style.flexDirection = "column";
-  placeholder.style.alignItems = "center";
-  placeholder.style.justifyContent = "center";
-
-  // Dynamic Gradient based on domain
-  let gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"; // default violet
-  let iconContent = domain[0].toUpperCase();
-  let label = domain;
-
-  if (tab.url.startsWith("chrome://")) {
-    gradient = "linear-gradient(135deg, #2c3e50 0%, #3498db 100%)"; // Blue-Grey
-    label = "Chrome System";
-    iconContent = "⚙️";
-  } else if (domain.includes("mail.google.com")) {
-    gradient = "linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)"; // Soft Red
-    iconContent = "✉️"; // Or use SVG if available
-    label = "Gmail";
-  } else if (domain.includes("calendar.google.com")) {
-    gradient = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"; // Cyan
-    iconContent = "📅";
-    label = "Calendar";
-  } else if (domain.includes("docs.google.com")) {
-    gradient = "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"; // Green
-    iconContent = "📝";
-    label = "Docs";
-  }
-
-  placeholder.style.background = gradient;
-
-  const icon = document.createElement("div");
-  icon.textContent = iconContent;
-  icon.style.fontSize = "48px";
-  icon.style.marginBottom = "8px";
-  icon.style.filter = "drop-shadow(0 2px 4px rgba(0,0,0,0.2))";
-
-  const text = document.createElement("div");
-  text.textContent = label;
-  text.style.color = "white";
-  text.style.fontFamily = "system-ui, sans-serif";
-  text.style.fontWeight = "600";
-  text.style.fontSize = "14px";
-  text.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
-
-  placeholder.appendChild(icon);
-  placeholder.appendChild(text);
-
-  return placeholder;
 }
 
 export function applyGroupViewTransformation(tabs: Tab[]): Tab[] {
@@ -759,17 +697,15 @@ export function createHistoryItem(entry, delta) {
   item.dataset.delta = delta;
 
   item.onclick = () => {
-    chrome.runtime.sendMessage({ action: "NAVIGATE_HISTORY", delta: delta });
+    // Use browser's native history API directly for reliable navigation
+    window.history.go(delta);
     closeOverlay();
   };
 
   item.onkeydown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      chrome.runtime.sendMessage({
-        action: "NAVIGATE_HISTORY",
-        delta: delta,
-      });
+      window.history.go(delta);
       closeOverlay();
     }
   };
@@ -838,7 +774,8 @@ export function activateSelectedHistoryItem() {
   if (!el) return;
   const delta = Number(el.dataset.delta);
   if (!Number.isFinite(delta)) return;
-  chrome.runtime.sendMessage({ action: "NAVIGATE_HISTORY", delta });
+  // Use browser's native history API directly
+  window.history.go(delta);
   closeOverlay();
 }
 

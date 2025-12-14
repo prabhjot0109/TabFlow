@@ -6,15 +6,131 @@ import {
   renderHistoryView,
 } from "../ui/rendering";
 
+// Extend Window interface to include the Navigation API
+declare global {
+  interface Window {
+    navigation?: {
+      entries: () => Array<{
+        url: string | null;
+        key: string;
+        id: string;
+        index: number;
+        sameDocument: boolean;
+      }>;
+      currentEntry?: {
+        url: string | null;
+        key: string;
+        id: string;
+        index: number;
+      };
+    };
+  }
+}
+
+// Get browser's actual navigation history using the Navigation API
+// This provides accurate back/forward entries that match browser's native UI
+export function getNavigationHistory(): {
+  back: Array<{ url: string; title: string }>;
+  forward: Array<{ url: string; title: string }>;
+} {
+  try {
+    // Check if Navigation API is available
+    if (!window.navigation || typeof window.navigation.entries !== "function") {
+      console.log("[TAB SWITCHER] Navigation API not available");
+      return { back: [], forward: [] };
+    }
+
+    const entries = window.navigation.entries();
+    const currentEntry = window.navigation.currentEntry;
+
+    if (!entries || entries.length === 0 || !currentEntry) {
+      console.log("[TAB SWITCHER] No navigation entries available");
+      return { back: [], forward: [] };
+    }
+
+    const currentIndex = currentEntry.index;
+    console.log(
+      "[TAB SWITCHER] Navigation entries:",
+      entries.length,
+      "Current index:",
+      currentIndex
+    );
+
+    // Build back history (entries before current, reversed so most recent is first)
+    const backEntries: Array<{ url: string; title: string }> = [];
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const entry = entries[i];
+      if (entry && entry.url) {
+        backEntries.push({
+          url: entry.url,
+          title: getTitleFromUrl(entry.url),
+        });
+      }
+    }
+
+    // Build forward history (entries after current)
+    const forwardEntries: Array<{ url: string; title: string }> = [];
+    for (let i = currentIndex + 1; i < entries.length; i++) {
+      const entry = entries[i];
+      if (entry && entry.url) {
+        forwardEntries.push({
+          url: entry.url,
+          title: getTitleFromUrl(entry.url),
+        });
+      }
+    }
+
+    console.log(
+      "[TAB SWITCHER] Back entries:",
+      backEntries.length,
+      "Forward entries:",
+      forwardEntries.length
+    );
+    return { back: backEntries, forward: forwardEntries };
+  } catch (error) {
+    console.error("[TAB SWITCHER] Error getting navigation history:", error);
+    return { back: [], forward: [] };
+  }
+}
+
+// Extract a readable title from URL
+function getTitleFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    // Try to create a readable title from the URL
+    let title = urlObj.hostname;
+
+    // Remove www. prefix
+    if (title.startsWith("www.")) {
+      title = title.substring(4);
+    }
+
+    // Add path if it's meaningful
+    if (urlObj.pathname && urlObj.pathname !== "/") {
+      const path = urlObj.pathname
+        .split("/")
+        .filter((p) => p)
+        .pop();
+      if (path && path.length < 50) {
+        title += " - " + decodeURIComponent(path).replace(/[-_]/g, " ");
+      }
+    }
+
+    return title;
+  } catch {
+    return url;
+  }
+}
+
 // Create smart search handler with combined throttle + debounce
 export function createSmartSearchHandler() {
-  let debounceTimer = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSearchTime = 0;
   const THROTTLE_MS = 100; // Immediate feedback for small tab sets
   const DEBOUNCE_MS = 300; // Wait for user to finish typing on large sets
   const LARGE_TAB_THRESHOLD = 50;
 
-  return (e) => {
+  return (e: Event) => {
     const now = performance.now();
     const timeSinceLastSearch = now - lastSearchTime;
     const isLargeTabSet = state.currentTabs.length >= LARGE_TAB_THRESHOLD;
@@ -62,23 +178,19 @@ export function handleSearch(e) {
       if (state.domCache.helpText) {
         state.domCache.helpText.innerHTML = `
             <span><kbd>,</kbd> History Mode</span>
-            <span><kbd>Click</kbd> Navigate</span>
-            <span><kbd>Backspace</kbd> Exit History</span>
+            <span><kbd>←→</kbd> Switch Column</span>
+            <span><kbd>↑↓</kbd> Navigate</span>
+            <span><kbd>Enter</kbd> Go</span>
+            <span><kbd>Backspace</kbd> Exit</span>
             <span><kbd>Esc</kbd> Close</span>
           `;
       }
 
-      chrome.runtime.sendMessage({ action: "GET_TAB_HISTORY" }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error(
-            "[TAB SWITCHER] History error:",
-            chrome.runtime.lastError
-          );
-          return;
-        }
-        console.log("[TAB SWITCHER] Received history:", response);
-        renderHistoryView(response || { back: [], forward: [] });
-      });
+      // Use the Navigation API to get actual browser history entries
+      // This is more reliable than tracking history ourselves
+      const historyData = getNavigationHistory();
+      console.log("[TAB SWITCHER] Navigation API history:", historyData);
+      renderHistoryView(historyData);
       return;
     }
 

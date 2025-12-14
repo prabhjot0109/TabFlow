@@ -894,9 +894,20 @@ async function sendMessageWithRetry(tabId: number, message: any, retries = 1) {
 }
 
 // Sort tabs by recent usage (most recently accessed first)
-// Falls back to tab open order for tabs not yet accessed
+// Uses Chrome's lastAccessed timestamp as primary sort, falls back to our tracking
 function sortTabsByRecent(tabs: chrome.tabs.Tab[]): chrome.tabs.Tab[] {
   return [...tabs].sort((a, b) => {
+    // Primary: Use Chrome's lastAccessed timestamp if available (most reliable)
+    const aLastAccessed = (a as any).lastAccessed || 0;
+    const bLastAccessed = (b as any).lastAccessed || 0;
+
+    if (aLastAccessed && bLastAccessed) {
+      return bLastAccessed - aLastAccessed; // Higher (more recent) first
+    }
+    if (aLastAccessed) return -1;
+    if (bLastAccessed) return 1;
+
+    // Fallback: Use our tracked recent order
     const aRecentIndex = a.id ? recentTabOrder.indexOf(a.id) : -1;
     const bRecentIndex = b.id ? recentTabOrder.indexOf(b.id) : -1;
 
@@ -910,7 +921,6 @@ function sortTabsByRecent(tabs: chrome.tabs.Tab[]): chrome.tabs.Tab[] {
     if (bRecentIndex !== -1) return 1;
 
     // Neither in recent - sort by open time (newer first)
-    // Fallback to ID if no time tracked
     const aTime = tabOpenOrder.get(a.id!) || 0;
     const bTime = tabOpenOrder.get(b.id!) || 0;
 
@@ -918,409 +928,16 @@ function sortTabsByRecent(tabs: chrome.tabs.Tab[]): chrome.tabs.Tab[] {
       return bTime - aTime;
     }
 
+    // Final fallback: tab index (higher index = more recent in Chrome)
     return b.index - a.index;
   });
 }
 
 // ============================================================================
-// TAB HISTORY TRACKER (Back/Forward Support)
+// HISTORY NOTE: Tab history is now handled directly in the content script
+// using the Navigation API (window.navigation.entries()). This provides
+// accurate back/forward entries without complex background tracking.
 // ============================================================================
-interface HistoryEntry {
-  url: string;
-  title: string;
-}
-
-interface HistoryData {
-  stack: (string | HistoryEntry)[];
-  currentIndex: number;
-}
-
-class TabHistoryTracker {
-  private storage: chrome.storage.LocalStorageArea;
-
-  constructor() {
-    this.storage = chrome.storage.local; // Use local storage for persistence
-    this.init();
-  }
-
-  init() {
-    // Track navigations via webNavigation API
-    if (chrome.webNavigation) {
-      chrome.webNavigation.onCommitted.addListener(
-        this.onNavigation.bind(this)
-      );
-
-      // SPA navigations (pushState/replaceState) and hash navigations.
-      // This is a Chromium-native API; content-script REPORT_NAVIGATION also covers these,
-      // but keeping both improves robustness.
-      if (chrome.webNavigation.onHistoryStateUpdated) {
-        chrome.webNavigation.onHistoryStateUpdated.addListener(
-          this.onNavigation.bind(this)
-        );
-      }
-      if (chrome.webNavigation.onReferenceFragmentUpdated) {
-        chrome.webNavigation.onReferenceFragmentUpdated.addListener(
-          this.onNavigation.bind(this)
-        );
-      }
-    }
-
-    // Also track tab updates for better coverage (captures title changes too)
-    chrome.tabs.onUpdated.addListener(this.onTabUpdated.bind(this));
-    chrome.tabs.onRemoved.addListener(this.onTabRemoved.bind(this));
-
-    // Initialize existing tabs on startup
-    this.initializeAllTabs();
-  }
-
-  // Initialize all existing tabs with their current URL and title
-  async initializeAllTabs() {
-    try {
-      const tabs = await chrome.tabs.query({});
-      console.log("[HISTORY] Initializing", tabs.length, "existing tabs");
-
-      for (const tab of tabs) {
-        if (
-          tab.url &&
-          !tab.url.startsWith("chrome://") &&
-          !tab.url.startsWith("edge://") &&
-          tab.id
-        ) {
-          await this.initializeTab(tab.id, tab.url, tab.title);
-        }
-      }
-    } catch (e) {
-      console.error("[HISTORY] Error initializing tabs:", e);
-    }
-  }
-
-  // Initialize a single tab with a URL if it doesn't have history
-  async initializeTab(tabId: number, url: string, title = "") {
-    if (!url || url.startsWith("chrome://") || url.startsWith("edge://"))
-      return;
-
-    const key = `hist_${tabId}`;
-    try {
-      const result = await this.storage.get(key);
-      if (!result[key]) {
-        // No history exists, create initial entry with url and title
-        const entry: HistoryEntry = { url, title: title || url };
-        const data: HistoryData = { stack: [entry], currentIndex: 0 };
-        await this.storage.set({ [key]: data });
-        console.log(
-          "[HISTORY] Initialized tab",
-          tabId,
-          "with:",
-          title || url.substring(0, 50)
-        );
-      }
-    } catch (e) {
-      console.debug("[HISTORY] Error initializing tab:", tabId, e);
-    }
-  }
-
-  // Track when tabs finish loading - capture title
-  async onTabUpdated(
-    tabId: number,
-    changeInfo: chrome.tabs.TabChangeInfo,
-    tab: chrome.tabs.Tab
-  ) {
-    // Don't treat load completion as a new navigation.
-    // Back/forward navigations often trigger onUpdated('complete') as well; if we
-    // call addToHistory() here with isBackForward=false it will clear forward
-    // history and re-push entries. Actual navigations are tracked via
-    // webNavigation and (more reliably) content-script REPORT_NAVIGATION.
-    if (changeInfo.status === "complete" && tab.url) {
-      await this.initializeTab(tabId, tab.url, tab.title || "");
-      await this.updateCurrentTitle(tabId, tab.url, tab.title || "");
-    }
-    // Also update title when it changes
-    if (changeInfo.title && tab.url) {
-      await this.updateCurrentTitle(tabId, tab.url, changeInfo.title);
-    }
-  }
-
-  async onNavigation(
-    details: chrome.webNavigation.WebNavigationCallbackDetails
-  ) {
-    if (details.frameId !== 0) return; // Only main frame
-
-    const tabId = details.tabId;
-    const url = details.url;
-    // transitionQualifiers is optional/can be undefined depending on event type, but usually present for onCommitted
-    const qualifiers = (details as any).transitionQualifiers || [];
-
-    // Check if this is a reload
-    if (qualifiers.includes("reload")) {
-      return;
-    }
-
-    const isBackForward = qualifiers.includes("forward_back");
-
-    // Get tab info for title
-    try {
-      const tab = await chrome.tabs.get(tabId);
-      await this.addToHistory(tabId, url, tab.title || "", isBackForward);
-    } catch (e) {
-      // Tab may not exist yet, add without title
-      await this.addToHistory(tabId, url, "", isBackForward);
-    }
-  }
-
-  // Update the title of the current history entry
-  async updateCurrentTitle(tabId: number, url: string, title: string) {
-    const key = `hist_${tabId}`;
-    try {
-      const result = await this.storage.get(key);
-      const data = result[key] as HistoryData;
-      if (!data || data.currentIndex < 0) return;
-
-      const current = data.stack[data.currentIndex];
-      if (current) {
-        // Handle both old string format and new object format
-        const currentUrl = typeof current === "string" ? current : current.url;
-        if (currentUrl === url) {
-          data.stack[data.currentIndex] = { url, title };
-          await this.storage.set({ [key]: data });
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-  }
-
-  // Helper to get URL from stack entry (handles both string and object formats)
-  getEntryUrl(entry: string | HistoryEntry | undefined): string | undefined {
-    if (!entry) return undefined;
-    return typeof entry === "string" ? entry : entry.url;
-  }
-
-  async addToHistory(
-    tabId: number,
-    url: string,
-    title: string,
-    isBackForward: boolean
-  ) {
-    if (
-      !url ||
-      url.startsWith("chrome://") ||
-      url.startsWith("edge://") ||
-      url.startsWith("devtools://")
-    ) {
-      return;
-    }
-
-    const key = `hist_${tabId}`;
-
-    try {
-      const result = await this.storage.get(key);
-      let data = (result[key] || {
-        stack: [],
-        currentIndex: -1,
-      }) as HistoryData;
-      const entry: HistoryEntry = { url, title: title || url };
-
-      // Helper to check equality
-      const isSameUrl = (e: string | HistoryEntry, u: string) =>
-        this.getEntryUrl(e) === u;
-
-      // 1. Check if we are ALREADY at this URL (race condition handling)
-      // If webNavigation fired first, currentIndex might already be updated.
-      // We just want to ensure the title is correct.
-      if (
-        data.currentIndex >= 0 &&
-        data.currentIndex < data.stack.length &&
-        isSameUrl(data.stack[data.currentIndex], url)
-      ) {
-        if (title) {
-          data.stack[data.currentIndex] = entry;
-          await this.storage.set({ [key]: data });
-        }
-        return;
-      }
-
-      if (isBackForward) {
-        // Try to find the URL in the stack near the current index
-        let foundIndex = -1;
-
-        // Check backward from current
-        for (let i = data.currentIndex - 1; i >= 0; i--) {
-          if (isSameUrl(data.stack[i], url)) {
-            foundIndex = i;
-            break;
-          }
-        }
-
-        // Check forward if not found
-        if (foundIndex === -1) {
-          for (let i = data.currentIndex + 1; i < data.stack.length; i++) {
-            if (isSameUrl(data.stack[i], url)) {
-              foundIndex = i;
-              break;
-            }
-          }
-        }
-
-        if (foundIndex !== -1) {
-          data.currentIndex = foundIndex;
-          if (title) {
-            data.stack[foundIndex] = entry;
-          }
-        } else {
-          // Fallback: If we can't find it effectively, treat as new nav?
-          // Or just append if we assume the stack drifted.
-          // Appending is safer than leaving user stuck.
-          if (
-            data.currentIndex >= 0 &&
-            data.currentIndex < data.stack.length - 1
-          ) {
-            data.stack = data.stack.slice(0, data.currentIndex + 1);
-          }
-          data.stack.push(entry);
-          data.currentIndex = data.stack.length - 1;
-        }
-      } else {
-        // New navigation - clear forward history
-        if (
-          data.currentIndex >= 0 &&
-          data.currentIndex < data.stack.length - 1
-        ) {
-          data.stack = data.stack.slice(0, data.currentIndex + 1);
-        }
-
-        // Only push if it's different from current URL (dedupe neighbors)
-        const currentUrl =
-          data.currentIndex >= 0
-            ? this.getEntryUrl(data.stack[data.currentIndex])
-            : null;
-
-        if (currentUrl !== url) {
-          data.stack.push(entry);
-          data.currentIndex = data.stack.length - 1;
-        } else if (title && data.currentIndex >= 0) {
-          // Same URL but update title
-          data.stack[data.currentIndex] = entry;
-        }
-      }
-
-      // Limit stack size to 50 entries
-      if (data.stack.length > 50) {
-        const removeCount = data.stack.length - 50;
-        data.stack.splice(0, removeCount);
-        data.currentIndex = Math.max(0, data.currentIndex - removeCount);
-      }
-
-      await this.storage.set({ [key]: data });
-      console.log(
-        "[HISTORY] Updated tab",
-        tabId,
-        "- stack:",
-        data.stack.length,
-        "items, index:",
-        data.currentIndex
-      );
-    } catch (e) {
-      console.error("[HISTORY] Error updating history:", e);
-    }
-  }
-
-  async onTabRemoved(tabId: number) {
-    try {
-      await this.storage.remove(`hist_${tabId}`);
-    } catch (e) {
-      console.debug("[HISTORY] Failed to remove history for tab:", tabId);
-    }
-  }
-
-  async getHistory(tabId: number) {
-    try {
-      const key = `hist_${tabId}`;
-      const result = await this.storage.get(key);
-      const data = result[key] as HistoryData;
-
-      console.log("[HISTORY] Getting history for tab", tabId, "data:", data);
-
-      if (!data || !data.stack || data.stack.length === 0) {
-        return { back: [], forward: [] };
-      }
-
-      // Normalize entries to always have url and title
-      const normalizeEntry = (entry: string | HistoryEntry) => {
-        if (typeof entry === "string") {
-          return { url: entry, title: entry };
-        }
-        return { url: entry.url, title: entry.title || entry.url };
-      };
-
-      // Back history: all items before currentIndex (reversed so most recent is first)
-      const backItems =
-        data.currentIndex > 0
-          ? data.stack.slice(0, data.currentIndex).reverse().map(normalizeEntry)
-          : [];
-
-      // Forward history: all items after currentIndex
-      const forwardItems =
-        data.currentIndex < data.stack.length - 1
-          ? data.stack.slice(data.currentIndex + 1).map(normalizeEntry)
-          : [];
-
-      console.log(
-        "[HISTORY] Returning - back:",
-        backItems.length,
-        "forward:",
-        forwardItems.length
-      );
-      return { back: backItems, forward: forwardItems };
-    } catch (e) {
-      console.error("[HISTORY] Error getting history:", e);
-      return { back: [], forward: [] };
-    }
-  }
-
-  // Update the currentIndex by a delta amount (used when navigating via extension)
-  async updateIndexByDelta(tabId: number, delta: number) {
-    const key = `hist_${tabId}`;
-    try {
-      const result = await this.storage.get(key);
-      const data = result[key] as HistoryData;
-      if (!data || !data.stack) return false;
-
-      const newIndex = data.currentIndex + delta;
-      if (newIndex < 0 || newIndex >= data.stack.length) {
-        return false; // Out of bounds
-      }
-
-      data.currentIndex = newIndex;
-      await this.storage.set({ [key]: data });
-      console.log(
-        "[HISTORY] Updated currentIndex to",
-        newIndex,
-        "for tab",
-        tabId
-      );
-      return true;
-    } catch (e) {
-      console.error("[HISTORY] Error updating index by delta:", e);
-      return false;
-    }
-  }
-
-  async navigate(tabId: number, delta: number) {
-    if (!tabId) return;
-
-    // Update our internal index BEFORE navigating
-    await this.updateIndexByDelta(tabId, delta);
-
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      func: (d) => window.history.go(d),
-      args: [delta],
-    });
-  }
-}
-
-// Initialize history tracker early so it's available for message handlers
-const historyTracker = new TabHistoryTracker();
 
 // ============================================================================
 // MESSAGE HANDLERS
@@ -1463,7 +1080,7 @@ async function handleMessage(
         }
         try {
           const tab = await chrome.tabs.get(request.tabId);
-          const newMutedStatus = !tab.mutedInfo.muted;
+          const newMutedStatus = !(tab.mutedInfo?.muted ?? false);
           await chrome.tabs.update(request.tabId, { muted: newMutedStatus });
           sendResponse({ success: true, muted: newMutedStatus });
         } catch (error: any) {
@@ -1528,73 +1145,8 @@ async function handleMessage(
         }
         break;
 
-      case "GET_TAB_HISTORY":
-        try {
-          const tabId = sender.tab ? sender.tab.id : request.tabId;
-          if (!tabId) {
-            sendResponse({ back: [], forward: [] });
-            return;
-          }
-          const history = await historyTracker.getHistory(tabId);
-          console.log("[HISTORY] Sending history for tab", tabId, history);
-          sendResponse(history);
-        } catch (error: any) {
-          console.error("[ERROR] Failed to get tab history:", error);
-          sendResponse({ back: [], forward: [] });
-        }
-        break;
-
-      case "REPORT_NAVIGATION":
-        try {
-          const tabId = sender.tab ? sender.tab.id : request.tabId;
-          const url = typeof request.url === "string" ? request.url : "";
-          const title = typeof request.title === "string" ? request.title : "";
-          const navType =
-            typeof request.navType === "string" ? request.navType : "navigate";
-
-          if (!tabId || !url) {
-            sendResponse({ success: false, error: "Missing tabId or url" });
-            return;
-          }
-
-          // Handle title updates without modifying history
-          if (navType === "title_update") {
-            await historyTracker.updateCurrentTitle(tabId, url, title);
-            sendResponse({ success: true, type: "title_update" });
-            return;
-          }
-
-          // Ignore reloads so they don't duplicate entries.
-          if (navType === "reload") {
-            await historyTracker.initializeTab(tabId, url, title);
-            await historyTracker.updateCurrentTitle(tabId, url, title);
-            sendResponse({ success: true, ignored: "reload" });
-            return;
-          }
-
-          const isBackForward = navType === "back_forward";
-          await historyTracker.addToHistory(tabId, url, title, isBackForward);
-          sendResponse({ success: true });
-        } catch (error: any) {
-          console.error("[ERROR] Failed to report navigation:", error);
-          sendResponse({ success: false, error: error.message });
-        }
-        break;
-
-      case "NAVIGATE_HISTORY":
-        try {
-          const tabId = sender.tab ? sender.tab.id : request.tabId;
-          if (tabId && typeof request.delta === "number") {
-            await historyTracker.navigate(tabId, request.delta);
-            sendResponse({ success: true });
-          } else {
-            sendResponse({ success: false, error: "Invalid tabId or delta" });
-          }
-        } catch (error: any) {
-          console.error("[ERROR] Failed to navigate history:", error);
-          sendResponse({ success: false, error: error.message });
-        }
-        break;
+      // Note: History navigation (GET_TAB_HISTORY, REPORT_NAVIGATION, NAVIGATE_HISTORY)
+      // is now handled directly in the content script using the Navigation API
 
       case "createGroup":
         try {

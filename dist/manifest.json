@@ -10,7 +10,6 @@
     "storage",
     "scripting",
     "sessions",
-    "webNavigation",
     "favicon"
   ],
   "host_permissions": [
@@ -23,7 +22,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-ClGHx5vK.js"
+        "assets/index.ts-U-HP2_D1.js"
       ],
       "matches": [
         "<all_urls>"
@@ -79,7 +78,7 @@
         "https://*/*"
       ],
       "resources": [
-        "assets/index.ts-ClGHx5vK.js"
+        "assets/index.ts-U-HP2_D1.js"
       ],
       "use_dynamic_url": false
     }

@@ -328,7 +328,7 @@ export function setViewMode(mode: "active" | "recent") {
         <span><kbd>Enter</kbd> Switch</span>
         <span><kbd>Delete</kbd> Close</span>
         <span><kbd>.</kbd> Recent Tabs</span>
-        <span><kbd>/</kbd> History</span>
+        <span><kbd>,</kbd> History</span>
         <span><kbd>?</kbd> Web Search</span>
         <span><kbd>Esc</kbd> Exit</span>
       `;
