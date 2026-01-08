@@ -7,7 +7,7 @@
 ![Chrome](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-grey.svg)
 
 **A professional, high-performance Tab Flow for power users.**
-Replace the default browser tab cycle with a beautiful, Mac-like "Mission Control" overlay. Visualize your tabs, search instantly, and navigate with speed.
+Replace the default browser tab cycle with a beautiful overlay. Visualize your tabs, search instantly, and navigate with speed.
 
 ---
 
@@ -40,7 +40,7 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 
 - **Tab History**: Navigate back/forward in a specific tab's history directly from the Flow using `,`.
 - **Restore Closed Tabs**: Quickly find and restore recently closed tabs with `.`.
-- **Web Search**: Start a web search directly from the Flow with `?`.
+- **Web Search**: Start a web search directly from the Flow with `Tab`.
 - **Keyboard First**: Fully navigable via keyboard, but mouse-friendly too.
 
 ---
@@ -55,7 +55,7 @@ Replace the default browser tab cycle with a beautiful, Mac-like "Mission Contro
 | **`Delete`** / **`Backspace`** | Close selected tab                             |
 | **`,`**                        | View Tab History (Back/Forward navigation)     |
 | **`.`**                        | View Recently Closed Tabs                      |
-| **`?`** (Shift + /)            | Web Search                                     |
+| **`Tab`** (Shift + /)            | Web Search                                     |
 | **`Esc`**                      | Close Flow                                     |
 
 > **Pro Tip:** You can map this extension to `Ctrl+Tab` in `chrome://extensions/shortcuts` for a native replacement feel.
@@ -106,16 +106,6 @@ Built with modern **Manifest V3** standards for security and performance.
 
 ---
 
-## 🗺️ Roadmap & Improvements
-
-- [x] ~~**Tab Groups**: Visual indicators and filtering for Chrome Tab Groups.~~ ✅ **Implemented!**
-- [ ] **Cloud Sync**: Sync your preferences across devices.
-- [ ] **Multi-Window**: Enhanced support for managing tabs across multiple windows.
-- [ ] **Stats Dashboard**: Visualize your browsing habits.
-- [ ] **Custom Themes**: User-defined color schemes and styles.
-
----
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please follow these steps:
@@ -125,27 +115,6 @@ Contributions are welcome! Please follow these steps:
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
 4. Push to the branch (`git push origin feature/AmazingFeature`).
 5. Open a Pull Request.
-
----
-
-## 📝 Changelog
-
-### v1.1.0
-
-- ✨ **Tab Groups Support**: Full Chrome Tab Groups integration with collapsible group headers
-- 🎨 **Material Design 3 UI**: Improved visual design with glassmorphism effects
-- 🔒 **Enhanced Input Isolation**: Better keystroke handling to prevent input leakage to host pages
-- 🐛 **Stability Improvements**: Fixed flickering issues and improved overlay lifecycle management
-- ⚡ **Shadow DOM CSS**: More robust styling that works consistently across all websites
-
-### v1.0.0
-
-- Initial release with core tab switching functionality
-- Tab preview thumbnails
-- Fuzzy search
-- Tab history navigation
-- Recently closed tabs restoration
-- Web search integration
 
 ---
 
