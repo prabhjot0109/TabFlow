@@ -1,121 +1,178 @@
-# <img src="./icons/icon128.png" width="40" height="40" style="vertical-align: bottom; margin-right: 10px;"> Tab Flow
+# <img src="./icons/icon128.png" width="32" height="32" style="vertical-align: bottom; margin-right: 10px;"> Tab Flow
 
 ![Extension Preview](./preview.png)
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Chrome](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-grey.svg)
-
-**A professional, high-performance Tab Flow for power users.**
-Replace the default browser tab cycle with a beautiful overlay. Visualize your tabs, search instantly, and navigate with speed.
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/prabhjot0109/tab_flow/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+[![Chrome](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-grey.svg)](#installation)
 
 ---
 
-## ✨ Features
+## What is Tab Flow?
 
-### 🎨 Stunning Visual Interface
+Ever find yourself drowning in browser tabs? We've all been there. You've got 30+ tabs open, and finding that one page you need feels like searching for a needle in a haystack.
 
-- **Material Design 3**: Modern, polished overlay following Material Design 3 principles with glassmorphism effects.
-- **Live Previews**: High-resolution thumbnail previews of all your open tabs.
-- **Theming**: Automatically adapts to **Light** and **Dark** system themes.
-- **Audio Indicators**: See which tabs are playing audio at a glance with mute/unmute controls.
-- **Consistent Styling**: Uses Shadow DOM to ensure the UI looks perfect on every website, regardless of the host page's styles.
+**Tab Flow** changes that. It's a beautiful, lightning-fast tab switcher that replaces Chrome's boring tab cycle with a visual overlay. Think of it like Spotlight for your browser tabs – press a shortcut, see all your tabs with live previews, and jump to the one you need instantly.
 
-### 📂 Tab Groups Support
-
-- **Visual Group Headers**: Chrome Tab Groups are displayed with collapsible header cards showing the group name and color.
-- **Collapse/Expand Groups**: Press `Enter` on a group header to toggle its collapsed state, or click the toggle button.
-- **Group Color Indicators**: Each group is highlighted with its assigned color for quick visual identification.
-- **Smart Grouping**: Tabs are automatically organized under their respective group headers.
-
-### 🚀 High-Performance Navigation
-
-- **Instant Access**: Opens in **<100ms** thanks to smart pre-caching and service worker optimization.
-- **Fuzzy Search**: Rapidly find tabs by title or URL. Just start typing.
-- **Smart Sorting**: Tabs are automatically sorted by **Recency**, so your last-used tab is always just one click away.
-- **Input Isolation**: Advanced event handling ensures your keystrokes stay within the Flow, preventing accidental input on the underlying page.
-- **Virtual Scrolling**: Handles 50+ tabs with smooth 60fps animations.
-
-### ⌨️ Power User Shortcuts
-
-- **Tab History**: Navigate back/forward in a specific tab's history directly from the Flow using `,`.
-- **Restore Closed Tabs**: Quickly find and restore recently closed tabs with `.`.
-- **Web Search**: Start a web search directly from the Flow with `Tab`.
-- **Keyboard First**: Fully navigable via keyboard, but mouse-friendly too.
+No more squinting at tiny favicons. No more clicking through endless tabs. Just press `Alt + Q` and you're there.
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Why You'll Love It
 
-| Key                            | Action                                         |
-| :----------------------------- | :--------------------------------------------- |
-| **`Alt` + `Q`**                | **Open Flow** (Customizable to `Ctrl+Tab`)     |
-| **`↑`** / **`↓`**              | Navigate between tabs                          |
-| **`Enter`**                    | Switch to selected tab / Toggle group collapse |
-| **`Delete`** / **`Backspace`** | Close selected tab                             |
-| **`,`**                        | View Tab History (Back/Forward navigation)     |
-| **`.`**                        | View Recently Closed Tabs                      |
-| **`Tab`** (Shift + /)            | Web Search                                     |
-| **`Esc`**                      | Close Flow                                     |
+### 🎯 **Find Any Tab in Seconds**
 
-> **Pro Tip:** You can map this extension to `Ctrl+Tab` in `chrome://extensions/shortcuts` for a native replacement feel.
+Start typing and Tab Flow instantly filters your tabs by title or URL. Looking for that GitHub PR? Just type "github" and there it is.
+
+### 👀 **See What's Actually Open**
+
+Each tab shows a live thumbnail preview, so you can visually spot the page you're looking for. No more guessing which "Google Docs" tab is the right one.
+
+### ⚡ **Stupidly Fast**
+
+Opens in under 100ms. Seriously. We obsess over performance so you don't have to wait.
+
+### 🎨 **Looks Great Everywhere**
+
+Clean, modern design that automatically adapts to light and dark themes. Uses glassmorphism effects that look stunning without being distracting.
+
+### 🔊 **Control Your Audio**
+
+See which tabs are playing sound at a glance. Mute that random YouTube video without hunting for it.
+
+### 📂 **Tab Groups? We Got You**
+
+If you use Chrome's tab groups, they're displayed beautifully with collapsible headers and color coding.
 
 ---
 
-## 🛠️ Installation
+## Keyboard Shortcuts
 
-### Developer Mode (Current Method)
+| Key                     | What it does                    |
+| ----------------------- | ------------------------------- |
+| `Alt + Q`               | Open Tab Flow                   |
+| `↑` / `↓`               | Navigate through tabs           |
+| `Enter`                 | Switch to selected tab          |
+| `Delete` or `Backspace` | Close selected tab              |
+| `.`                     | View recently closed tabs       |
+| `;`                     | View tab history (back/forward) |
+| `Tab`                   | Search the web                  |
+| `Esc`                   | Close Tab Flow                  |
 
-1. **Clone the repository**:
+> **💡 Pro Tip:** Want to use `Ctrl+Tab` instead? Head to `chrome://extensions/shortcuts` and remap it. Makes Tab Flow feel completely native.
+
+---
+
+## Installation
+
+### Chrome Web Store (Coming Soon)
+
+The extension will be available on the Chrome Web Store soon. Star this repo to get notified!
+
+### Manual Installation (Developer Mode)
+
+1. **Grab the code:**
+
    ```bash
    git clone https://github.com/prabhjot0109/tab_flow.git
    cd tab_flow
    ```
-2. **Install & Build**:
+
+2. **Install dependencies and build:**
+
    ```bash
-   bun install
-   bun run build
+   # Using bun (recommended)
+   bun install && bun run build
+
+   # Or using npm
+   npm install && npm run build
    ```
-3. **Open Chrome Extensions**:
-   - Go to `chrome://extensions/`
-   - Toggle **Developer mode** in the top right.
-4. **Load Unpacked**:
-   - Click **"Load unpacked"**.
-   - Select the `dist` directory created by the build.
-5. **Setup**:
-   - The extension is now active! Press `Alt + Q` to try it out.
+
+3. **Load it in Chrome:**
+
+   - Open `chrome://extensions/`
+   - Turn on **Developer mode** (top right toggle)
+   - Click **"Load unpacked"**
+   - Select the `dist` folder
+
+4. **Try it out:**
+   Press `Alt + Q` and enjoy!
 
 ---
 
-## 🔧 Technical Architecture
+## How It Works
 
-Built with modern **Manifest V3** standards for security and performance.
+Tab Flow is built with performance and privacy in mind:
 
-- **Build System**: Powered by **Vite** and **Bun** for ultra-fast builds and modular development.
-- **TypeScript**: Fully typed codebase for better maintainability and developer experience.
-- **Modular Architecture**: Codebase split into specialized modules:
-  - `content/ui/` - Rendering and overlay management
-  - `content/input/` - Keyboard and focus handling
-  - `content/actions.ts` - Core actions (switch, close, mute, group operations)
-  - `content/state.ts` - Centralized state management
-  - `background/` - Service worker for tab management and screenshotting
-- **Shadow DOM Isolation**: Completely isolates extension styles from the host page, preventing layout conflicts.
-- **Service Worker**: Manages tab state, captures screenshots, and handles background operations.
-- **LRU Cache**: Custom Least Recently Used cache with **IndexedDB persistence** for efficient screenshot storage (<50MB memory footprint).
-- **Virtual Scrolling**: Optimized rendering for 50+ tabs with smooth 60fps animations.
+- **Manifest V3** – Uses Chrome's latest extension platform for better security and performance
+- **Service Worker** – Captures tab screenshots and manages state efficiently in the background
+- **Shadow DOM** – The overlay is completely isolated from web pages, so it looks perfect everywhere
+- **LRU Cache** – Smart caching keeps memory usage under control, even with 100+ tabs
+- **Virtual Scrolling** – Handles large tab counts smoothly at 60fps
 
----
+### Tech Stack
 
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the project.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+- TypeScript for type safety
+- Vite + CRXJS for blazing fast builds
+- IndexedDB for persistent caching
+- No external dependencies for the core functionality
 
 ---
 
-**Made with ❤️ for productivity enthusiasts.**
+## Privacy
+
+**Your data stays on your device. Period.**
+
+Tab Flow stores tab thumbnails and metadata locally to power the tab switching experience. Here's what we want you to know:
+
+- ✅ **No data leaves your browser** – Everything is stored locally in IndexedDB
+- ✅ **No analytics or tracking** – We don't collect usage data
+- ✅ **No accounts required** – Just install and use
+- ✅ **Open source** – You can see exactly what the code does
+
+For the legal stuff, check out our [Privacy Policy](./PRIVACY.md).
+
+> The use of information received from Google APIs adheres to the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/), including the Limited Use requirements.
+
+---
+
+## FAQ
+
+**Q: Why does it need access to all websites?**  
+A: To capture tab screenshots and show the overlay on any page you're viewing. We don't read or store your browsing data – just take screenshots for the preview tiles.
+
+**Q: Does it work on Chrome internal pages?**  
+A: Chrome doesn't allow extensions to inject content on `chrome://` pages. On these pages, Tab Flow opens as a popup window instead. Same functionality, different container.
+
+**Q: Can I change the keyboard shortcut?**  
+A: Yes! Go to `chrome://extensions/shortcuts` and set whatever key combo you prefer.
+
+**Q: How much memory does it use?**  
+A: We cap screenshot cache at ~20MB. With typical usage (30 tabs), expect around 15-25MB of memory usage.
+
+---
+
+## Contributing
+
+Found a bug? Have a feature idea? Contributions are welcome!
+
+1. Fork the repo
+2. Create your feature branch: `git checkout -b feature/cool-thing`
+3. Make your changes and commit: `git commit -m 'Add cool thing'`
+4. Push to your fork: `git push origin feature/cool-thing`
+5. Open a Pull Request
+
+Please keep PRs focused and include a clear description of what you're changing and why.
+
+---
+
+## License
+
+MIT License – do whatever you want with it. See [LICENSE](./LICENSE) for details.
+
+---
+
+<p align="center">
+  <b>Built for people who have too many tabs open.</b><br>
+  (So, everyone.)
+</p>

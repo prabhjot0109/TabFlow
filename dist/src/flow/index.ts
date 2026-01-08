@@ -59,6 +59,90 @@ let helpText: HTMLElement;
 let container: HTMLElement;
 
 // ============================================================================
+// SVG HELPERS (DOM-based for security - no innerHTML for SVGs)
+// ============================================================================
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function createSvgElement(
+  viewBox: string,
+  paths: { d: string }[],
+  options?: { fill?: string; stroke?: string; strokeWidth?: string }
+): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", viewBox);
+  if (options?.fill) svg.setAttribute("fill", options.fill);
+  if (options?.stroke) svg.setAttribute("stroke", options.stroke);
+  if (options?.strokeWidth)
+    svg.setAttribute("stroke-width", options.strokeWidth);
+
+  paths.forEach((p) => {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", p.d);
+    svg.appendChild(path);
+  });
+
+  return svg;
+}
+
+function createCloseSvg(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+
+  const line1 = document.createElementNS(SVG_NS, "line");
+  line1.setAttribute("x1", "18");
+  line1.setAttribute("y1", "6");
+  line1.setAttribute("x2", "6");
+  line1.setAttribute("y2", "18");
+  svg.appendChild(line1);
+
+  const line2 = document.createElementNS(SVG_NS, "line");
+  line2.setAttribute("x1", "6");
+  line2.setAttribute("y1", "6");
+  line2.setAttribute("x2", "18");
+  line2.setAttribute("y2", "18");
+  svg.appendChild(line2);
+
+  return svg;
+}
+
+function createRestoreSvg(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+
+  const path1 = document.createElementNS(SVG_NS, "path");
+  path1.setAttribute("d", "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8");
+  svg.appendChild(path1);
+
+  const path2 = document.createElementNS(SVG_NS, "path");
+  path2.setAttribute("d", "M3 3v5h5");
+  svg.appendChild(path2);
+
+  return svg;
+}
+
+function createAudioSvg(): SVGSVGElement {
+  return createSvgElement("0 0 24 24", [
+    {
+      d: "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z",
+    },
+  ]);
+}
+
+function createMutedSvg(): SVGSVGElement {
+  return createSvgElement("0 0 24 24", [
+    {
+      d: "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z",
+    },
+  ]);
+}
+
+// ============================================================================
 // INITIALIZATION
 // ============================================================================
 
@@ -677,29 +761,39 @@ async function restoreSession(sessionId: string) {
 function updateHelpText() {
   if (!helpText) return;
 
+  // Clear existing content
+  helpText.textContent = "";
+
+  // Helper to create help items
+  const createHelpItem = (keys: string[], action: string) => {
+    const span = document.createElement("span");
+    keys.forEach((key) => {
+      const kbd = document.createElement("kbd");
+      kbd.textContent = key;
+      span.appendChild(kbd);
+      span.appendChild(document.createTextNode(" "));
+    });
+    span.appendChild(document.createTextNode(action));
+    return span;
+  };
+
   if (currentMode === "recent") {
-    helpText.innerHTML = `
-      <span><kbd>↑↓</kbd> Navigate</span>
-      <span><kbd>↵</kbd>Restore</span>
-      <span><kbd>.</kbd> <kbd>Backspace</kbd> Active Tabs</span>
-      <span><kbd>Esc</kbd>Exit</span>
-    `;
+    helpText.appendChild(createHelpItem(["↑↓"], "Navigate"));
+    helpText.appendChild(createHelpItem(["↵"], "Restore"));
+    helpText.appendChild(createHelpItem([".", "Backspace"], "Active Tabs"));
+    helpText.appendChild(createHelpItem(["Esc"], "Exit"));
   } else if (webSearchActive) {
-    helpText.innerHTML = `
-      <span><kbd>Tab</kbd>Exit Search Mode</span>
-      <span><kbd>↵</kbd>Search Google</span>
-      <span><kbd>Backspace</kbd>Exit</span>
-      <span><kbd>Esc</kbd>Exit</span>
-    `;
+    helpText.appendChild(createHelpItem(["Tab"], "Exit Search Mode"));
+    helpText.appendChild(createHelpItem(["↵"], "Search Google"));
+    helpText.appendChild(createHelpItem(["Backspace"], "Exit"));
+    helpText.appendChild(createHelpItem(["Esc"], "Exit"));
   } else {
-    helpText.innerHTML = `
-      <span><kbd>Alt+Q</kbd> <kbd>↑↓</kbd> Navigate</span>
-      <span><kbd>↵</kbd>Switch</span>
-      <span><kbd>Del</kbd>Close</span>
-      <span><kbd>.</kbd>Recent</span>
-      <span><kbd>Tab</kbd>Web Search</span>
-      <span><kbd>Esc</kbd>Exit</span>
-    `;
+    helpText.appendChild(createHelpItem(["Alt+Q", "↑↓"], "Navigate"));
+    helpText.appendChild(createHelpItem(["↵"], "Switch"));
+    helpText.appendChild(createHelpItem(["Del"], "Close"));
+    helpText.appendChild(createHelpItem(["."], "Recent"));
+    helpText.appendChild(createHelpItem(["Tab"], "Web Search"));
+    helpText.appendChild(createHelpItem(["Esc"], "Exit"));
   }
 }
 
@@ -787,14 +881,22 @@ function renderTabs() {
         ? "Type to search the web..."
         : "No tabs found";
 
-    tabGrid.innerHTML = `
-      <div class="tab-flow-empty">
-        <div class="empty-icon">${
-          currentMode === "recent" ? "📋" : webSearchActive ? "🌐" : "🔍"
-        }</div>
-        <div>${emptyMessage}</div>
-      </div>
-    `;
+    const emptyIcon =
+      currentMode === "recent" ? "📋" : webSearchActive ? "🌐" : "🔍";
+
+    const emptyDiv = document.createElement("div");
+    emptyDiv.className = "tab-flow-empty";
+
+    const iconDiv = document.createElement("div");
+    iconDiv.className = "empty-icon";
+    iconDiv.textContent = emptyIcon;
+    emptyDiv.appendChild(iconDiv);
+
+    const messageDiv = document.createElement("div");
+    messageDiv.textContent = emptyMessage;
+    emptyDiv.appendChild(messageDiv);
+
+    tabGrid.appendChild(emptyDiv);
     return;
   }
 
@@ -822,7 +924,11 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
     googleIcon.src = "https://www.google.com/favicon.ico";
     googleIcon.alt = "Google";
     googleIcon.onerror = () => {
-      faviconTile.innerHTML = `<div class="favicon-letter">G</div>`;
+      faviconTile.textContent = "";
+      const letterDiv = document.createElement("div");
+      letterDiv.className = "favicon-letter";
+      letterDiv.textContent = "G";
+      faviconTile.appendChild(letterDiv);
     };
     faviconTile.appendChild(googleIcon);
     thumbnail.appendChild(faviconTile);
@@ -875,16 +981,22 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
       favicon.src = tab.favIconUrl;
       favicon.alt = "";
       favicon.onerror = () => {
-        faviconTile.innerHTML = `<div class="favicon-letter">${getFirstLetter(
-          tab.title
-        )}</div>`;
+        faviconTile.textContent = "";
+        const letterDiv = document.createElement("div");
+        letterDiv.className = "favicon-letter";
+        letterDiv.textContent = getFirstLetter(tab.title);
+        faviconTile.appendChild(letterDiv);
       };
       faviconTile.appendChild(favicon);
       thumbnail.appendChild(faviconTile);
     } else {
-      thumbnail.innerHTML = `<div class="favicon-tile"><div class="favicon-letter">${getFirstLetter(
-        tab.title
-      )}</div></div>`;
+      const faviconTile = document.createElement("div");
+      faviconTile.className = "favicon-tile";
+      const letterDiv = document.createElement("div");
+      letterDiv.className = "favicon-letter";
+      letterDiv.textContent = getFirstLetter(tab.title);
+      faviconTile.appendChild(letterDiv);
+      thumbnail.appendChild(faviconTile);
     }
 
     card.appendChild(thumbnail);
@@ -923,10 +1035,7 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
     // Restore icon instead of close button for recent items
     const restoreBtn = document.createElement("button");
     restoreBtn.className = "tab-close-btn restore-btn";
-    restoreBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-      <path d="M3 3v5h5"/>
-    </svg>`;
+    restoreBtn.appendChild(createRestoreSvg());
     restoreBtn.title = "Restore tab";
     card.appendChild(restoreBtn);
 
@@ -971,15 +1080,18 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
       favicon.src = tab.favIconUrl;
       favicon.alt = "";
       favicon.onerror = () => {
-        faviconTile.innerHTML = `<div class="favicon-letter">${getFirstLetter(
-          tab.title
-        )}</div>`;
+        faviconTile.textContent = "";
+        const letterDiv = document.createElement("div");
+        letterDiv.className = "favicon-letter";
+        letterDiv.textContent = getFirstLetter(tab.title);
+        faviconTile.appendChild(letterDiv);
       };
       faviconTile.appendChild(favicon);
     } else {
-      faviconTile.innerHTML = `<div class="favicon-letter">${getFirstLetter(
-        tab.title
-      )}</div>`;
+      const letterDiv = document.createElement("div");
+      letterDiv.className = "favicon-letter";
+      letterDiv.textContent = getFirstLetter(tab.title);
+      faviconTile.appendChild(letterDiv);
     }
 
     thumbnail.appendChild(faviconTile);
@@ -1022,10 +1134,7 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
   // Close button
   const closeBtn = document.createElement("button");
   closeBtn.className = "tab-close-btn";
-  closeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <line x1="18" y1="6" x2="6" y2="18"></line>
-    <line x1="6" y1="6" x2="18" y2="18"></line>
-  </svg>`;
+  closeBtn.appendChild(createCloseSvg());
   closeBtn.title = "Close tab";
   card.appendChild(closeBtn);
 
@@ -1033,12 +1142,12 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
   if (tab.audible && !tab.mutedInfo?.muted) {
     const audioIndicator = document.createElement("div");
     audioIndicator.className = "tab-audio-indicator";
-    audioIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
+    audioIndicator.appendChild(createAudioSvg());
     card.appendChild(audioIndicator);
   } else if (tab.mutedInfo?.muted) {
     const audioIndicator = document.createElement("div");
     audioIndicator.className = "tab-audio-indicator muted";
-    audioIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
+    audioIndicator.appendChild(createMutedSvg());
     card.appendChild(audioIndicator);
   }
 
@@ -1080,7 +1189,3 @@ function getGroupColorValue(color: string): string {
 // ============================================================================
 
 document.addEventListener("DOMContentLoaded", initialize);
-
-
-
-

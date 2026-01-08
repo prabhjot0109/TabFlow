@@ -1,6 +1,6 @@
 {
   "../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-uf-69pL_.js",
+    "file": "assets/crx-manifest.js-q4isyncv.js",
     "name": "crx-manifest.js",
     "src": "../../../@crx/manifest",
     "isEntry": true
@@ -26,7 +26,7 @@
     "isEntry": true
   },
   "src/flow/index.html": {
-    "file": "assets/Flow-DUYyfRdo.js",
+    "file": "assets/Flow-RQMCfom_.js",
     "name": "Flow",
     "src": "src/flow/index.html",
     "isEntry": true,
