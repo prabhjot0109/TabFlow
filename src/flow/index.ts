@@ -264,6 +264,11 @@ function setupEventListeners() {
     }
   });
 
+  // Auto-close on focus loss
+  window.addEventListener("blur", () => {
+    window.close();
+  });
+
   // Allow background command (Alt+W) to cycle selection when this popup
   // window is already open (protected-page fallback).
   if (chrome?.runtime?.onMessage) {
@@ -941,11 +946,7 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
     const titleRow = document.createElement("div");
     titleRow.className = "tab-title-row";
 
-    const favicon = document.createElement("img");
-    favicon.className = "tab-favicon";
-    favicon.src = "https://www.google.com/favicon.ico";
-    favicon.alt = "";
-    titleRow.appendChild(favicon);
+    // Small favicon removed as per request
 
     const title = document.createElement("span");
     title.className = "tab-title";
@@ -1008,14 +1009,7 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
     const titleRow = document.createElement("div");
     titleRow.className = "tab-title-row";
 
-    if (tab.favIconUrl) {
-      const favicon = document.createElement("img");
-      favicon.className = "tab-favicon";
-      favicon.src = tab.favIconUrl;
-      favicon.alt = "";
-      favicon.onerror = () => favicon.remove();
-      titleRow.appendChild(favicon);
-    }
+    // Small favicon removed as per request
 
     const title = document.createElement("span");
     title.className = "tab-title";
@@ -1107,14 +1101,7 @@ function createTabCard(tab: Tab, index: number): HTMLElement {
   const titleRow = document.createElement("div");
   titleRow.className = "tab-title-row";
 
-  if (tab.favIconUrl && !tab.favIconUrl.startsWith("chrome://")) {
-    const favicon = document.createElement("img");
-    favicon.className = "tab-favicon";
-    favicon.src = tab.favIconUrl;
-    favicon.alt = "";
-    favicon.onerror = () => favicon.remove();
-    titleRow.appendChild(favicon);
-  }
+  // Small favicon removed as per request
 
   const title = document.createElement("span");
   title.className = "tab-title";

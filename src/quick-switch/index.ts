@@ -136,6 +136,11 @@ function setupEventListeners() {
   // Tab grid click events (event delegation)
   tabGrid.addEventListener("click", handleGridClick);
 
+  // Auto-close on focus loss
+  window.addEventListener("blur", () => {
+    window.close();
+  });
+
   // Listen for cycle-next message from background
   if (chrome?.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {

@@ -724,7 +724,3 @@ function getGroupColor(colorName: string) {
   };
   return colors[colorName] || colorName;
 }
-
-
-
-

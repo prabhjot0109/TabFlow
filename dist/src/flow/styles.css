@@ -730,10 +730,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 0 0 auto;
-  min-height: auto;
-  max-height: none;
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .tab-flow-grid.search-mode .tab-card {
@@ -1040,7 +1040,3 @@ body {
     scroll-behavior: auto !important;
   }
 }
-
-
-
-

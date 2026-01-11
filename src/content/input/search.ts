@@ -411,7 +411,3 @@ export function fuzzyMatch(text: string | null | undefined, query: string) {
 
   return { match: true, score: Math.max(1, score) };
 }
-
-
-
-

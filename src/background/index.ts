@@ -70,8 +70,8 @@ async function openFlowPopup(
 
     // Get the current window to position the popup
     const currentWindow = await chrome.windows.getCurrent();
-    const popupWidth = 780;
-    const popupHeight = 550;
+    const popupWidth = 750;
+    const popupHeight = 500;
 
     // Calculate center position
     const left =
@@ -164,7 +164,7 @@ async function openQuickSwitchPopup(
 
     // Get the current window to position the popup
     const currentWindow = await chrome.windows.getCurrent();
-    const popupWidth = 680;
+    const popupWidth = 750;
     const popupHeight = 500;
 
     // Calculate center position
