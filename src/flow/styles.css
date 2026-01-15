@@ -730,10 +730,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  flex: 0 0 auto;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .tab-flow-grid.search-mode .tab-card {
@@ -1039,4 +1039,18 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Virtual Scrolling - for 100+ tabs performance */
+.tab-flow-grid.virtual-list {
+  display: block;
+  position: relative;
+}
+
+.tab-flow-grid.virtual-list .tab-card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  contain: layout style paint;
+  will-change: transform;
 }

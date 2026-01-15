@@ -71,9 +71,10 @@ export function updateRecentTabOrder(tabId: number): void {
   removeFromRecentOrder(tabId);
   recentTabOrder.unshift(tabId);
 
-  // Keep only necessary entries
-  if (recentTabOrder.length > PERF_CONFIG.MAX_CACHED_TABS * 2) {
-    recentTabOrder.length = PERF_CONFIG.MAX_CACHED_TABS * 2;
+  // Keep only necessary entries - increased for 100+ tabs support
+  const maxRecentEntries = 200;
+  if (recentTabOrder.length > maxRecentEntries) {
+    recentTabOrder.length = maxRecentEntries;
   }
 
   // Persist to storage (debounced)
@@ -96,7 +97,7 @@ function saveRecentOrderDebounced(): void {
   if (saveRecentOrderTimer) clearTimeout(saveRecentOrderTimer);
   saveRecentOrderTimer = setTimeout(() => {
     chrome.storage.local
-      .set({ recentTabOrder: recentTabOrder.slice(0, 100) })
+      .set({ recentTabOrder: recentTabOrder.slice(0, 200) })
       .catch((e) => console.debug("[STORAGE] Failed to save recent order:", e));
   }, 500);
 }
@@ -211,7 +212,3 @@ export async function initializeExistingTabs(): Promise<void> {
     console.error("[INIT] Failed to initialize existing tabs:", error);
   }
 }
-
-
-
-

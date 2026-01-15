@@ -855,16 +855,48 @@ function setViewMode(mode: "grid" | "list") {
 }
 
 function updateSelection() {
+  // Check if we're using virtual scrolling and need to re-render
+  const useVirtualScrolling = filteredTabs.length > 50 && viewMode === "list";
+
+  if (useVirtualScrolling) {
+    // Check if selected index is in the currently rendered range
+    const visibleCount = 30;
+    const bufferCount = 10;
+    const firstRenderedCard = tabGrid.querySelector(".tab-card") as HTMLElement;
+    const lastRenderedCard = tabGrid.querySelector(
+      ".tab-card:last-child"
+    ) as HTMLElement;
+
+    if (firstRenderedCard && lastRenderedCard) {
+      const firstIndex = parseInt(firstRenderedCard.dataset.index || "0", 10);
+      const lastIndex = parseInt(lastRenderedCard.dataset.index || "0", 10);
+
+      // Re-render if selection is outside the visible range
+      if (selectedIndex < firstIndex || selectedIndex > lastIndex) {
+        renderTabs();
+      }
+    }
+  }
+
   // Remove old selection
   tabGrid.querySelectorAll(".tab-card.selected").forEach((el) => {
     el.classList.remove("selected");
   });
 
-  // Add new selection
-  const cards = tabGrid.querySelectorAll(".tab-card");
-  if (cards[selectedIndex]) {
-    cards[selectedIndex].classList.add("selected");
-    cards[selectedIndex].scrollIntoView({
+  // Find card by data-index for virtual scrolling support
+  let targetCard: Element | null = null;
+  if (useVirtualScrolling) {
+    targetCard = tabGrid.querySelector(
+      `.tab-card[data-index="${selectedIndex}"]`
+    );
+  } else {
+    const cards = tabGrid.querySelectorAll(".tab-card");
+    targetCard = cards[selectedIndex] || null;
+  }
+
+  if (targetCard) {
+    targetCard.classList.add("selected");
+    targetCard.scrollIntoView({
       block: "nearest",
       behavior: "smooth",
     });
@@ -906,10 +938,43 @@ function renderTabs() {
     return;
   }
 
-  filteredTabs.forEach((tab, index) => {
-    const card = createTabCard(tab, index);
-    tabGrid.appendChild(card);
-  });
+  // Use virtual scrolling for 50+ tabs to improve performance
+  const useVirtualScrolling = filteredTabs.length > 50 && viewMode === "list";
+
+  if (useVirtualScrolling) {
+    const itemHeight = 68; // Approximate height of each list item
+    const visibleCount = 30;
+    const bufferCount = 10;
+    const startIndex = Math.max(0, selectedIndex - bufferCount);
+    const endIndex = Math.min(
+      filteredTabs.length,
+      selectedIndex + visibleCount + bufferCount
+    );
+
+    // Set virtual list styling
+    tabGrid.classList.add("virtual-list");
+    tabGrid.style.minHeight = `${filteredTabs.length * itemHeight}px`;
+    tabGrid.style.position = "relative";
+
+    for (let i = startIndex; i < endIndex; i++) {
+      const card = createTabCard(filteredTabs[i], i);
+      card.style.position = "absolute";
+      card.style.top = `${i * itemHeight}px`;
+      card.style.left = "0";
+      card.style.right = "0";
+      tabGrid.appendChild(card);
+    }
+  } else {
+    // Standard rendering for <50 tabs or grid view
+    tabGrid.classList.remove("virtual-list");
+    tabGrid.style.minHeight = "";
+    tabGrid.style.position = "";
+
+    filteredTabs.forEach((tab, index) => {
+      const card = createTabCard(tab, index);
+      tabGrid.appendChild(card);
+    });
+  }
 }
 
 function createTabCard(tab: Tab, index: number): HTMLElement {

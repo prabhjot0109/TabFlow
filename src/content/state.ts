@@ -116,12 +116,12 @@ export const state: State = {
     tabHint: null,
   },
 
-  // Virtual scrolling
+  // Virtual scrolling - optimized for 100+ tabs
   virtualScroll: {
     startIndex: 0,
     endIndex: 0,
-    visibleCount: 20,
-    bufferCount: 5,
+    visibleCount: 30, // Increased for smoother scrolling
+    bufferCount: 10, // Increased buffer for better scroll experience
   },
 
   // Performance

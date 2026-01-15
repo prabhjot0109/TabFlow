@@ -5,28 +5,28 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_index.ts-loader-ibaBIByD.js": {
-    "file": "assets/index.ts-loader-ibaBIByD.js",
-    "src": "_index.ts-loader-ibaBIByD.js"
+  "_index.ts-loader-Du-MBO6J.js": {
+    "file": "assets/index.ts-loader-Du-MBO6J.js",
+    "src": "_index.ts-loader-Du-MBO6J.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
     "name": "modulepreload-polyfill"
   },
   "src/background/index.ts": {
-    "file": "assets/index.ts-Db7qUK8k.js",
+    "file": "assets/index.ts-DykWceKz.js",
     "name": "index.ts",
     "src": "src/background/index.ts",
     "isEntry": true
   },
   "src/content/index.ts": {
-    "file": "assets/index.ts-CaH4s2as.js",
+    "file": "assets/index.ts-PiK2iCAx.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
     "isEntry": true
   },
   "src/flow/index.html": {
-    "file": "assets/Flow-WfAgr7qQ.js",
+    "file": "assets/Flow-DtikUBTz.js",
     "name": "Flow",
     "src": "src/flow/index.html",
     "isEntry": true,
@@ -34,7 +34,7 @@
       "_modulepreload-polyfill-B5Qt9EMX.js"
     ],
     "css": [
-      "assets/Flow-bqdZSx0o.css"
+      "assets/Flow-zpErlOf9.css"
     ]
   },
   "src/popup/popup.html": {

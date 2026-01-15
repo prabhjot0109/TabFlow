@@ -311,8 +311,7 @@
   overflow-x: hidden;
   /* Extra vertical padding to allow space for the "selection lift/scale" without cropping */
   padding: 12px 12px;
-  flex: 1; /* Added to fill available space */
-  min-height: 0; /* Changed from 180px to 0 to allow shrinking/scrolling properly */
+  min-height: 180px;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
 }
@@ -414,9 +413,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  min-height: auto;
 }
 
 .tab-flow-grid.recent-mode .tab-media-controls,
@@ -1454,4 +1451,18 @@ kbd:hover {
   min-width: 20px;
   height: 20px;
   font-size: 10px;
+}
+
+/* Virtual Scrolling - for 100+ tabs performance */
+.tab-flow-grid.virtual-list {
+  display: block;
+  position: relative;
+}
+
+.tab-flow-grid.virtual-list .tab-card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  contain: layout style paint;
+  will-change: transform;
 }

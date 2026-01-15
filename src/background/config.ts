@@ -9,23 +9,23 @@ export interface QualityTier {
 }
 
 export const PERF_CONFIG = {
-  MAX_CACHED_TABS: 30, // LRU cache size
-  MAX_CACHE_BYTES: 20 * 1024 * 1024, // 20MB total cache
-  MAX_SCREENSHOT_SIZE: 200 * 1024, // 200KB per screenshot (will be adjusted by quality tier)
-  JPEG_QUALITY: 60, // JPEG compression quality (will be adjusted by quality tier)
+  MAX_CACHED_TABS: 100, // LRU cache size - increased for 100+ tabs support
+  MAX_CACHE_BYTES: 50 * 1024 * 1024, // 50MB total cache for 100+ tabs
+  MAX_SCREENSHOT_SIZE: 150 * 1024, // 150KB per screenshot (optimized for many tabs)
+  JPEG_QUALITY: 50, // JPEG compression quality (balanced for performance)
   CAPTURE_DELAY: 100, // Delay before capture (ms)
-  SCREENSHOT_CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+  SCREENSHOT_CACHE_DURATION: 10 * 60 * 1000, // 10 minutes (increased for better cache utilization)
   MAX_CAPTURES_PER_SECOND: 2, // Chrome API limit
   THROTTLE_INTERVAL: 500, // Min time between captures (ms)
   PERFORMANCE_LOGGING: true, // Enable performance metrics
 
   // Quality tiers for memory optimization
   QUALITY_TIERS: {
-    HIGH: { quality: 80, maxSize: 300 * 1024, label: "High Quality" },
-    NORMAL: { quality: 60, maxSize: 200 * 1024, label: "Normal" },
-    PERFORMANCE: { quality: 40, maxSize: 100 * 1024, label: "Performance" },
+    HIGH: { quality: 70, maxSize: 200 * 1024, label: "High Quality" },
+    NORMAL: { quality: 50, maxSize: 150 * 1024, label: "Normal" },
+    PERFORMANCE: { quality: 35, maxSize: 80 * 1024, label: "Performance" },
   } as Record<string, QualityTier>,
-  DEFAULT_QUALITY_TIER: "PERFORMANCE", // Default quality tier
+  DEFAULT_QUALITY_TIER: "PERFORMANCE", // Default quality tier for memory efficiency
 
   // Alarm names for chrome.alarms API
   ALARMS: {

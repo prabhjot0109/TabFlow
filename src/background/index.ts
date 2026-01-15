@@ -473,7 +473,8 @@ async function handleShowTabFlow(): Promise<void> {
     const sortedTabs = tabTracker.sortTabsByRecent(tabsWithIds);
 
     // Build tab data with cached screenshots
-    const RECENT_PREVIEW_LIMIT = 8;
+    // Increased limit for better preview coverage with 100+ tabs
+    const RECENT_PREVIEW_LIMIT = 20;
 
     const tabsData = sortedTabs.map((tab, index) => {
       let screenshotData = null;
