@@ -18,6 +18,7 @@ import {
   renderTabsVirtual,
   enforceSingleSelection,
   applyGroupViewTransformation,
+  shouldUseVirtualRendering,
 } from "./rendering";
 import * as focus from "../input/focus";
 
@@ -473,7 +474,7 @@ export function showTabFlow(
   }
 
   // Determine rendering strategy based on tab count
-  if (state.filteredTabs.length > 50) {
+  if (shouldUseVirtualRendering(state.filteredTabs.length)) {
     console.log(
       "[PERF] Using virtual scrolling for",
       state.filteredTabs.length,

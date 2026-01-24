@@ -5,6 +5,7 @@ import {
   renderTabsStandard,
   renderTabsVirtual,
   applyGroupViewTransformation,
+  shouldUseVirtualRendering,
 } from "./ui/rendering";
 
 export function closeOverlay() {
@@ -205,7 +206,7 @@ export function closeTab(tabId: number, index: number) {
       }
 
       if (state.filteredTabs.length > 0) {
-        if (state.filteredTabs.length > 50) {
+        if (shouldUseVirtualRendering(state.filteredTabs.length)) {
           renderTabsVirtual(state.filteredTabs);
         } else {
           renderTabsStandard(state.filteredTabs);
@@ -243,7 +244,7 @@ export function closeTab(tabId: number, index: number) {
               state.selectedIndex = Math.max(0, state.filteredTabs.length - 1);
             }
 
-            if (state.filteredTabs.length > 50) {
+            if (shouldUseVirtualRendering(state.filteredTabs.length)) {
               renderTabsVirtual(state.filteredTabs);
             } else {
               renderTabsStandard(state.filteredTabs);
@@ -426,7 +427,7 @@ export function switchToActive() {
     state.domCache.grid.classList.remove("recent-mode");
     state.domCache.grid.classList.remove("search-mode");
   }
-  if (state.filteredTabs.length > 50) {
+  if (shouldUseVirtualRendering(state.filteredTabs.length)) {
     renderTabsVirtual(state.filteredTabs);
   } else {
     renderTabsStandard(state.filteredTabs);

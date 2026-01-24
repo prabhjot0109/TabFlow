@@ -8,6 +8,22 @@ import {
   closeTab,
 } from "../actions";
 
+const VIRTUAL_RENDER_THRESHOLD = 50;
+
+function isListLayout(): boolean {
+  const grid = state.domCache.grid;
+  if (!grid) return false;
+  return (
+    grid.classList.contains("list-view") ||
+    grid.classList.contains("search-mode") ||
+    grid.classList.contains("recent-mode")
+  );
+}
+
+export function shouldUseVirtualRendering(tabCount: number): boolean {
+  return tabCount > VIRTUAL_RENDER_THRESHOLD && isListLayout();
+}
+
 // ============================================================================
 // TAB CARD TEMPLATE (Performance Optimization)
 // Template cloning is ~3x faster than creating elements individually
@@ -466,7 +482,7 @@ export function updateSelection() {
   try {
     if (!state.domCache.grid) return;
     // Re-render window if virtual and out of range
-    const isVirtual = state.filteredTabs && state.filteredTabs.length > 50;
+    const isVirtual = shouldUseVirtualRendering(state.filteredTabs.length);
     if (isVirtual) {
       const { startIndex, endIndex } = state.virtualScroll;
       if (state.selectedIndex < startIndex || state.selectedIndex >= endIndex) {

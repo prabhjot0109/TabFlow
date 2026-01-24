@@ -4,6 +4,7 @@ import {
   renderTabsStandard,
   renderTabsVirtual,
   renderHistoryView,
+  shouldUseVirtualRendering,
 } from "../ui/rendering";
 
 // Extend Window interface to include the Navigation API
@@ -297,7 +298,7 @@ export function handleSearch(e: Event) {
       state.filteredTabs = state.currentTabs;
       state.selectedIndex = 0;
 
-      if (state.currentTabs.length > 50) {
+      if (shouldUseVirtualRendering(state.currentTabs.length)) {
         renderTabsVirtual(state.currentTabs);
       } else {
         renderTabsStandard(state.currentTabs);
@@ -329,7 +330,7 @@ export function handleSearch(e: Event) {
     state.filteredTabs = filtered;
     state.selectedIndex = 0;
 
-    if (filtered.length > 50) {
+    if (shouldUseVirtualRendering(filtered.length)) {
       renderTabsVirtual(filtered);
     } else {
       renderTabsStandard(filtered);

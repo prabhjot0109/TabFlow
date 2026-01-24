@@ -5,9 +5,9 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_index.ts-loader-Du-MBO6J.js": {
-    "file": "assets/index.ts-loader-Du-MBO6J.js",
-    "src": "_index.ts-loader-Du-MBO6J.js"
+  "_index.ts-loader-BAW9-2Vk.js": {
+    "file": "assets/index.ts-loader-BAW9-2Vk.js",
+    "src": "_index.ts-loader-BAW9-2Vk.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
@@ -20,7 +20,7 @@
     "isEntry": true
   },
   "src/content/index.ts": {
-    "file": "assets/index.ts-PiK2iCAx.js",
+    "file": "assets/index.ts-JX1eHXPm.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
     "isEntry": true

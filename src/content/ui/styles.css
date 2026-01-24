@@ -311,6 +311,7 @@
   overflow-x: hidden;
   /* Extra vertical padding to allow space for the "selection lift/scale" without cropping */
   padding: 12px 12px;
+  flex: 1;
   min-height: 180px;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
