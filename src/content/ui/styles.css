@@ -53,8 +53,8 @@
 
   --shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.18);
   --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.12);
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter",
-    sans-serif;
+  --font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
   --transition-fast: 0.1s ease;
   --transition-smooth: 0.15s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -771,7 +771,9 @@
   font-size: 16px;
   font-weight: 300;
   opacity: 0;
-  transition: opacity var(--transition-fast), background var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    background var(--transition-fast);
   cursor: pointer;
   z-index: 10;
 }
@@ -816,7 +818,9 @@
   opacity: 0;
   border: none;
   cursor: pointer;
-  transition: opacity var(--transition-fast), background var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    background var(--transition-fast);
 }
 
 /* Show play button on hover, or when playing, or when marked visible */
@@ -863,7 +867,9 @@
   opacity: 0;
   border: none;
   cursor: pointer;
-  transition: opacity var(--transition-fast), background var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    background var(--transition-fast);
 }
 
 /* Show mute button on hover, or when muted, or when marked visible */
@@ -934,8 +940,8 @@ kbd {
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
