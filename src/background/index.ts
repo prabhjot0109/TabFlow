@@ -12,9 +12,7 @@ import * as mediaTracker from "./services/media-tracker";
 import * as tabTracker from "./services/tab-tracker";
 import * as screenshot from "./services/screenshot";
 import { handleMessage, sendMessageWithRetry } from "./handlers/messages";
-
-const POPUP_WIDTH = 750;
-const POPUP_HEIGHT = 560;
+import { getCenteredPopupBounds } from "../shared/panel";
 
 const DEBUG_LOGGING = false;
 const log = (...args: unknown[]) => {
@@ -81,31 +79,16 @@ async function openFlowPopup(
 
     // Get the current window to position the popup
     const currentWindow = await chrome.windows.getCurrent();
-    const popupWidth = POPUP_WIDTH;
-    const popupHeight = POPUP_HEIGHT;
-
-    // Calculate center position
-    const left =
-      currentWindow.left !== undefined
-        ? Math.round(
-          currentWindow.left + (currentWindow.width! - popupWidth) / 2,
-        )
-        : 100;
-    const top =
-      currentWindow.top !== undefined
-        ? Math.round(
-          currentWindow.top + (currentWindow.height! - popupHeight) / 2,
-        )
-        : 100;
+    const popupBounds = getCenteredPopupBounds(currentWindow);
 
     // Create popup window
     const popupWindow = await chrome.windows.create({
       url: chrome.runtime.getURL("src/flow/index.html"),
       type: "popup",
-      width: popupWidth,
-      height: popupHeight,
-      left: left,
-      top: top,
+      width: popupBounds.width,
+      height: popupBounds.height,
+      left: popupBounds.left,
+      top: popupBounds.top,
       focused: true,
     });
 
@@ -173,31 +156,16 @@ async function openQuickSwitchPopup(
 
     // Get the current window to position the popup
     const currentWindow = await chrome.windows.getCurrent();
-    const popupWidth = POPUP_WIDTH;
-    const popupHeight = POPUP_HEIGHT;
-
-    // Calculate center position
-    const left =
-      currentWindow.left !== undefined
-        ? Math.round(
-          currentWindow.left + (currentWindow.width! - popupWidth) / 2,
-        )
-        : 100;
-    const top =
-      currentWindow.top !== undefined
-        ? Math.round(
-          currentWindow.top + (currentWindow.height! - popupHeight) / 2,
-        )
-        : 100;
+    const popupBounds = getCenteredPopupBounds(currentWindow);
 
     // Create popup window with quick switch page
     const popupWindow = await chrome.windows.create({
       url: chrome.runtime.getURL("src/quick-switch/index.html"),
       type: "popup",
-      width: popupWidth,
-      height: popupHeight,
-      left: left,
-      top: top,
+      width: popupBounds.width,
+      height: popupBounds.height,
+      left: popupBounds.left,
+      top: popupBounds.top,
       focused: true,
     });
 

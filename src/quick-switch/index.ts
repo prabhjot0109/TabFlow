@@ -6,26 +6,20 @@
 import {
   showQuickSwitch,
   advanceQuickSwitchSelection,
-  ensureShadowRoot,
 } from "../content/ui/overlay";
 import type { Tab } from "../shared/types";
+import {
+  closePopupWindowSoon,
+  getActiveTabId,
+  initializeProtectedPopup,
+} from "../shared/protected-popup";
 
 type QuickSwitchPayload = {
   tabs: Tab[];
   activeTabId: number | null;
 };
 
-function closePopupWindowSoon(): void {
-  setTimeout(() => {
-    try {
-      window.close();
-    } catch {
-      // Ignore close errors.
-    }
-  }, 0);
-}
-
-function setupPopupLifecycle(): void {
+function setupPopupLifecycle(closePopupWindowSoon: () => void): void {
   // Auto-close once focus leaves the popup (e.g. tab switch completed).
   window.addEventListener("blur", closePopupWindowSoon);
 
@@ -41,24 +35,6 @@ function setupPopupLifecycle(): void {
       closePopupWindowSoon();
     }
   }, true);
-}
-
-function setupCycleListener(): void {
-  if (!chrome?.runtime?.onMessage) return;
-
-  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-    if (request?.action === "QuickSwitchPopupCycleNext") {
-      advanceQuickSwitchSelection(1);
-      sendResponse?.({ success: true });
-      return true;
-    }
-    return false;
-  });
-}
-
-function getActiveTabId(tabs: Tab[]): number | null {
-  const activeTab = tabs.find((tab) => tab.active && typeof tab.id === "number");
-  return activeTab?.id ?? null;
 }
 
 async function requestTabsFromBackground(): Promise<QuickSwitchPayload | null> {
@@ -81,67 +57,51 @@ async function requestTabsFromBackground(): Promise<QuickSwitchPayload | null> {
   }
 }
 
-async function loadTabs(): Promise<QuickSwitchPayload | null> {
-  try {
-    const result = await chrome.storage.session.get(["QuickSwitchTabData"]);
-    const stored = result.QuickSwitchTabData as
-      | { tabs?: Tab[]; activeTabId?: number }
-      | undefined;
+function parseStoredQuickSwitchPayload(stored: unknown): QuickSwitchPayload | null {
+  const quickSwitchState = stored as
+    | { tabs?: Tab[]; activeTabId?: number }
+    | undefined;
 
-    if (stored && Array.isArray(stored.tabs) && stored.tabs.length > 0) {
-      return {
-        tabs: stored.tabs,
-        activeTabId:
-          typeof stored.activeTabId === "number"
-            ? stored.activeTabId
-            : getActiveTabId(stored.tabs),
-      };
-    }
-  } catch (error) {
-    console.error("[QS POPUP] Failed to load session tab data:", error);
+  if (
+    !quickSwitchState ||
+    !Array.isArray(quickSwitchState.tabs) ||
+    quickSwitchState.tabs.length === 0
+  ) {
+    return null;
   }
 
-  return requestTabsFromBackground();
+  return {
+    tabs: quickSwitchState.tabs,
+    activeTabId:
+      typeof quickSwitchState.activeTabId === "number"
+        ? quickSwitchState.activeTabId
+        : getActiveTabId(quickSwitchState.tabs),
+  };
 }
 
 async function initialize(): Promise<void> {
-  const payload = await loadTabs();
-  if (!payload || payload.tabs.length === 0) {
-    closePopupWindowSoon();
-    return;
-  }
-
-  setupCycleListener();
-  setupPopupLifecycle();
-  await showQuickSwitch(payload.tabs, payload.activeTabId);
-  applyPopupTightLayout();
+  await initializeProtectedPopup<QuickSwitchPayload>({
+    storageKey: "QuickSwitchTabData",
+    errorLabel: "[QS POPUP]",
+    overlayId: "quick-switch-overlay",
+    containerSelector: ".tab-flow-container.quick-switch-container",
+    parseStored: parseStoredQuickSwitchPayload,
+    fallbackLoader: requestTabsFromBackground,
+    isEmpty: (payload) => payload.tabs.length === 0,
+    setupLifecycle: setupPopupLifecycle,
+    render: async (payload) => {
+      await showQuickSwitch(payload.tabs, payload.activeTabId);
+    },
+    cycleAction: {
+      action: "QuickSwitchPopupCycleNext",
+      onCycle: () => {
+        advanceQuickSwitchSelection(1);
+      },
+    },
+  });
 }
 
 initialize().catch((error) => {
   console.error("[QS POPUP] Initialization failed:", error);
   closePopupWindowSoon();
 });
-
-function applyPopupTightLayout(): void {
-  const shadowRoot = ensureShadowRoot();
-  if (!shadowRoot) return;
-
-  const overlay = shadowRoot.getElementById("quick-switch-overlay") as HTMLElement | null;
-  const container = shadowRoot.querySelector(
-    ".tab-flow-container.quick-switch-container",
-  ) as HTMLElement | null;
-
-  if (overlay) {
-    overlay.style.padding = "0";
-    overlay.style.alignItems = "stretch";
-    overlay.style.justifyContent = "stretch";
-  }
-
-  if (container) {
-    container.style.width = "100%";
-    container.style.maxWidth = "100%";
-    container.style.height = "100%";
-    container.style.maxHeight = "100%";
-    container.style.borderRadius = "0";
-  }
-}

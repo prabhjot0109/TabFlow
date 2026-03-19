@@ -1,5 +1,6 @@
 import { state, Tab } from "../state";
 import { closeOverlay } from "../actions";
+import { syncPanelDensity } from "./panel-layout";
 
 const DEBUG_LOGGING = false;
 const log = (...args: unknown[]) => {
@@ -116,6 +117,7 @@ function createMediaButton(
 export function renderTabsStandard(tabs: Tab[]) {
   const startTime = performance.now();
   const grid = state.domCache.grid;
+  const container = state.domCache.container;
   if (!grid) return;
 
   // Clear grid and reset virtual list mode
@@ -132,6 +134,7 @@ export function renderTabsStandard(tabs: Tab[]) {
     emptyMsg.className = "tab-flow-empty";
     emptyMsg.textContent = "No tabs found";
     grid.appendChild(emptyMsg);
+    syncPanelDensity(container, grid, 0);
     return;
   }
 
@@ -151,6 +154,7 @@ export function renderTabsStandard(tabs: Tab[]) {
 
   // Single DOM update
   grid.appendChild(fragment);
+  syncPanelDensity(container, grid, tabs.length);
   // After rendering, ensure only one card is selected in DOM
   enforceSingleSelection(false);
 
@@ -164,6 +168,7 @@ export function renderTabsStandard(tabs: Tab[]) {
 export function renderTabsVirtual(tabs: Tab[]) {
   const startTime = performance.now();
   const grid = state.domCache.grid;
+  const container = state.domCache.container;
   if (!grid) return;
 
   // Clear grid and set virtual list mode
@@ -179,6 +184,7 @@ export function renderTabsVirtual(tabs: Tab[]) {
     emptyMsg.className = "tab-flow-empty";
     emptyMsg.textContent = "No tabs found";
     grid.appendChild(emptyMsg);
+    syncPanelDensity(container, grid, 0);
     return;
   }
 
@@ -216,6 +222,7 @@ export function renderTabsVirtual(tabs: Tab[]) {
   }
 
   grid.appendChild(fragment);
+  syncPanelDensity(container, grid, tabs.length);
 
   // Setup intersection observer for lazy loading
   setupIntersectionObserver();
@@ -536,6 +543,7 @@ export function renderHistoryView(historyData: {
   forward: Array<{ url: string; title: string }>;
 }) {
   const grid = state.domCache.grid;
+  const panelContainer = state.domCache.container;
   if (!grid) return;
 
   grid.innerHTML = "";
@@ -619,6 +627,11 @@ export function renderHistoryView(historyData: {
   container.appendChild(backCol);
   container.appendChild(fwdCol);
   grid.appendChild(container);
+  syncPanelDensity(
+    panelContainer,
+    grid,
+    historyData.back.length + historyData.forward.length,
+  );
 
   // Choose a default selection
   if (state.history.backEls.length > 0) {

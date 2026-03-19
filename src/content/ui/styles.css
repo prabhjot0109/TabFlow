@@ -20,6 +20,9 @@
 
   /* Ensure host doesn't affect page layout */
   display: contents !important;
+  color-scheme: dark light;
+  direction: ltr !important;
+  text-size-adjust: 100%;
 
   /* CSS Custom Properties - Monochrome Theme (White/Grey/Black) */
   --bg-overlay: transparent;
@@ -40,8 +43,8 @@
   --card-selected: #3a3a3a;
   --danger: #ff6b6b;
   --success: #59d499;
-  --grid-card-height: 140px;
-  --grid-thumb-min-height: 80px;
+  --grid-card-height: 124px;
+  --grid-thumb-min-height: 70px;
 
   /* Raycast-style Shape - Subtle Rounded */
   --radius-3xl: 12px;
@@ -93,9 +96,9 @@
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--tab-flow-viewport-gap, 24px);
   font-family: var(--font-family);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -124,10 +127,22 @@
 
 .tab-flow-container {
   position: relative;
-  width: 750px;
-  max-width: 94vw;
-  /* Fixed max-height for consistent sizing across all modes */
-  max-height: min(68vh, 560px);
+  inline-size: min(
+    var(--tab-flow-panel-width, 700px),
+    calc(100vw - (var(--tab-flow-viewport-gap, 20px) * 2))
+  );
+  block-size: min(
+    var(--tab-flow-panel-height, 500px),
+    calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2))
+  );
+  min-block-size: min(
+    var(--tab-flow-panel-min-height, 220px),
+    calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2))
+  );
+  max-block-size: min(
+    var(--tab-flow-panel-height, 500px),
+    calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2))
+  );
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-3xl);
@@ -139,12 +154,38 @@
   animation: containerFadeIn 0.15s ease-out;
 }
 
+.tab-flow-container[data-panel-density="compact"] {
+  block-size: auto;
+}
+
+.tab-flow-container[data-panel-density="compact"] .tab-flow-grid {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.tab-flow-overlay.popup-shell {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.tab-flow-container.popup-shell {
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+  max-block-size: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* Search Header - Raycast-style Navigation Bar */
 .tab-flow-search-row {
   display: flex;
   align-items: center;
   gap: 0;
   padding: 0;
+  min-height: 66px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-subtle);
   background: transparent;
@@ -162,8 +203,8 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 22px 24px 22px 56px;
-  font-size: 17px;
+  padding: 21px 20px 21px 54px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--text-primary);
   outline: none;
@@ -207,7 +248,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   pointer-events: none;
   opacity: 1;
   transition: opacity var(--transition-fast);
@@ -217,13 +258,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   font-family: inherit;
   color: var(--text-secondary);
@@ -238,12 +279,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px 2px 16px;
+  padding: 10px 14px 4px 14px;
   flex-shrink: 0;
 }
 
 .tab-flow-section-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -263,8 +304,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 24px;
+  width: 26px;
+  height: 22px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -284,8 +325,8 @@
 }
 
 .view-toggle-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 /* Buttons */
@@ -316,14 +357,14 @@
 /* Grid - Active Tabs */
 .tab-flow-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 10px;
   overflow-y: auto;
   overflow-x: hidden;
   /* Extra vertical padding to allow space for the "selection lift/scale" without cropping */
-  padding: 12px 14px;
+  padding: 8px 12px 12px;
   flex: 1;
-  min-height: 180px;
+  min-height: 156px;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
 }
@@ -332,17 +373,17 @@
 .tab-flow-grid.list-view {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .tab-flow-grid.list-view .tab-card {
   width: 100%;
   height: auto;
-  min-height: 52px;
+  min-height: 48px;
   flex-direction: row;
   align-items: center;
-  padding: 10px 14px;
-  gap: 12px;
+  padding: 8px 12px;
+  gap: 10px;
 }
 
 .tab-flow-grid.list-view .tab-card:hover {
@@ -354,10 +395,10 @@
 }
 
 .tab-flow-grid.list-view .tab-thumbnail {
-  flex: 0 0 36px;
-  height: 36px;
-  width: 36px;
-  min-height: 36px;
+  flex: 0 0 32px;
+  height: 32px;
+  width: 32px;
+  min-height: 32px;
   border-radius: var(--radius-sm);
 }
 
@@ -368,12 +409,12 @@
 }
 
 .tab-flow-grid.list-view .tab-title {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .tab-flow-grid.list-view .tab-url {
   padding-left: 0;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .tab-flow-grid.list-view .tab-close-btn {
@@ -424,7 +465,7 @@
 .tab-flow-grid.search-mode {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-height: auto;
 }
 
@@ -515,9 +556,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 32px 20px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -596,11 +637,11 @@
 .tab-card[data-web-search="1"] {
   grid-column: 1 / -1 !important;
   width: 100% !important;
-  height: 54px !important;
+  height: 50px !important;
   flex-direction: row !important;
   align-items: center !important;
-  padding: 0 16px !important;
-  gap: 14px !important;
+  padding: 0 14px !important;
+  gap: 12px !important;
   border: 1px solid var(--border-subtle) !important;
   background: linear-gradient(
     135deg,
@@ -633,8 +674,8 @@
 }
 
 .tab-card[data-web-search="1"] .favicon-large {
-  width: 24px !important;
-  height: 24px !important;
+  width: 22px !important;
+  height: 22px !important;
 }
 
 .tab-card[data-web-search="1"] .tab-info {
@@ -646,14 +687,14 @@
 }
 
 .tab-card[data-web-search="1"] .tab-title {
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
   margin: 0 !important;
 }
 
 .tab-card[data-web-search="1"] .tab-url {
   display: block !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
   color: var(--text-muted) !important;
   margin-top: 1px !important;
   padding-left: 0 !important;
@@ -680,9 +721,9 @@
 }
 
 .tab-card[data-web-search="1"] .tab-thumbnail {
-  flex: 0 0 36px;
-  height: 36px;
-  width: 36px;
+  flex: 0 0 32px;
+  height: 32px;
+  width: 32px;
   border-radius: var(--radius-md);
   background: var(--bg-glass);
 }
@@ -718,21 +759,21 @@
 }
 
 .favicon-large {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
   border-radius: var(--radius-sm);
   /* No transition needed */
 }
 
 .tab-card[data-web-search="1"] .favicon-large {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
 }
 
 .favicon-letter {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius-md);
   background: var(--bg-glass-hover);
   border: 1px solid var(--border-subtle);
@@ -740,7 +781,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
   /* Simple border transition only */
@@ -755,7 +796,7 @@
 
 /* Tab Info */
 .tab-info {
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: transparent;
   position: relative;
   z-index: 1;
@@ -789,7 +830,7 @@
 }
 
 .tab-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
@@ -805,12 +846,12 @@
 }
 
 .tab-card[data-web-search="1"] .tab-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .tab-url {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -973,10 +1014,10 @@
   align-items: center;
   gap: 0;
   margin-top: 0;
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-top: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   justify-content: center;
   flex-wrap: nowrap;
   flex-shrink: 0;
@@ -988,10 +1029,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 12px;
+  padding: 0 10px;
   white-space: nowrap;
   border-right: 1px solid var(--border-subtle);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -1005,13 +1046,13 @@ kbd {
   justify-content: center;
   min-width: 20px;
   height: 20px;
-  padding: 0 6px;
+  padding: 0 5px;
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-secondary);
   box-shadow: none;
@@ -1041,11 +1082,11 @@ kbd:hover {
 .tab-flow-grid.recent-mode .tab-card {
   width: 100%;
   height: auto;
-  min-height: 52px;
+  min-height: 48px;
   flex-direction: row;
   align-items: center;
-  padding: 10px 14px;
-  gap: 12px;
+  padding: 8px 12px;
+  gap: 10px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: none;
@@ -1065,10 +1106,10 @@ kbd:hover {
 }
 
 .tab-flow-grid.recent-mode .tab-thumbnail {
-  flex: 0 0 40px;
-  height: 40px;
-  width: 40px;
-  min-height: 40px;
+  flex: 0 0 36px;
+  height: 36px;
+  width: 36px;
+  min-height: 36px;
   border-radius: var(--radius-sm);
   background: var(--bg-glass);
 }
@@ -1078,14 +1119,14 @@ kbd:hover {
 }
 
 .tab-flow-grid.recent-mode .favicon-large {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
 }
 
 .tab-flow-grid.recent-mode .favicon-letter {
-  width: 40px;
-  height: 40px;
-  font-size: 17px;
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
   border-radius: var(--radius-sm);
 }
 
@@ -1100,12 +1141,12 @@ kbd:hover {
 }
 
 .tab-flow-grid.recent-mode .tab-title {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .tab-flow-grid.recent-mode .tab-url {
   padding-left: 0;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .tab-flow-grid.recent-mode .tab-close-btn {
@@ -1116,11 +1157,11 @@ kbd:hover {
 .tab-flow-grid.search-mode .tab-card {
   width: 100%;
   height: auto;
-  min-height: 52px;
+  min-height: 48px;
   flex-direction: row;
   align-items: center;
-  padding: 10px 14px;
-  gap: 12px;
+  padding: 8px 12px;
+  gap: 10px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: none;
@@ -1155,28 +1196,23 @@ kbd:hover {
 }
 
 .tab-flow-grid.search-mode .tab-title {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .tab-flow-grid.search-mode .tab-url {
   padding-left: 0;
-  font-size: 12px;
+  font-size: 11px;
   display: block;
-}
-
-/* Responsive - Large screens: allow more height */
-@media (min-width: 1200px) and (min-height: 900px) {
-  .tab-flow-container {
-    max-height: min(72vh, 720px);
-  }
 }
 
 /* Responsive - Small screens */
 @media (max-width: 768px) {
+  .tab-flow-overlay {
+    padding: 12px;
+  }
+
   .tab-flow-container {
     padding: 0;
-    max-width: 98vw;
-    max-height: min(85vh, 600px);
   }
 
   .tab-flow-grid {
@@ -1386,22 +1422,22 @@ kbd:hover {
 }
 
 .quick-switch-container .tab-flow-section-header {
-  padding: 16px 20px 12px;
+  padding: 12px 16px 8px;
   margin: 0;
 }
 
 .quick-switch-container .tab-flow-section-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 /* Quick switch grid base styles */
 .quick-switch-grid {
-  padding: 12px 14px !important;
-  gap: 12px !important;
+  padding: 10px 12px !important;
+  gap: 10px !important;
 
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
 }
 
 /* Grid view - show thumbnails */
@@ -1417,7 +1453,7 @@ kbd:hover {
 }
 
 .quick-switch-grid:not(.list-view) .tab-info {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .quick-switch-grid:not(.list-view) .tab-header {
@@ -1430,36 +1466,36 @@ kbd:hover {
 }
 
 .quick-switch-grid:not(.list-view) .tab-title {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .quick-switch-grid:not(.list-view) .tab-url {
   padding-left: 26px;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 /* List view - compact rows */
 .quick-switch-grid.list-view {
   display: flex;
   flex-direction: column;
-  gap: 10px !important;
+  gap: 8px !important;
 }
 
 .quick-switch-grid.list-view .tab-card {
   width: 100%;
   height: auto;
-  min-height: 54px;
+  min-height: 48px;
   flex-direction: row;
   align-items: center;
-  padding: 10px 14px !important;
-  gap: 16px;
+  padding: 8px 12px !important;
+  gap: 12px;
 }
 
 .quick-switch-grid.list-view .tab-thumbnail {
-  flex: 0 0 44px;
-  height: 44px;
-  width: 44px;
-  min-height: 44px;
+  flex: 0 0 38px;
+  height: 38px;
+  width: 38px;
+  min-height: 38px;
   border-radius: var(--radius-sm);
   background: var(--bg-glass);
 }
@@ -1469,8 +1505,8 @@ kbd:hover {
 }
 
 .quick-switch-grid.list-view .favicon-large {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .quick-switch-grid.list-view .tab-info {
@@ -1489,13 +1525,13 @@ kbd:hover {
 }
 
 .quick-switch-grid.list-view .tab-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .quick-switch-grid.list-view .tab-url {
   padding-left: 0;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 /* Current tab indicator */
@@ -1505,7 +1541,7 @@ kbd:hover {
 
 .quick-switch-grid.list-view .tab-card.current-tab::after {
   content: "(current)";
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   margin-left: auto;
   padding-left: 8px;
@@ -1514,19 +1550,19 @@ kbd:hover {
 
 /* Quick switch help text */
 .quick-switch-mode .tab-flow-help {
-  padding: 10px 16px;
+  padding: 8px 14px;
   min-height: 40px;
 }
 
 .quick-switch-mode .tab-flow-help span {
-  font-size: 11px;
-  padding: 0 10px;
+  font-size: 10px;
+  padding: 0 8px;
 }
 
 .quick-switch-mode .tab-flow-help kbd {
   min-width: 20px;
   height: 20px;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 /* Virtual Scrolling - for 100+ tabs performance */

@@ -1,6 +1,10 @@
 import { state, type Group, type Tab } from "../state";
 import { SHADOW_CSS, SHADOW_HOST_ID } from "./styles";
 import { closeOverlay, setViewMode } from "../actions";
+import {
+  applyPanelStyleContract,
+  syncPanelDensity,
+} from "./panel-layout";
 import { createSmartSearchHandler } from "../input/search";
 import {
   handleSearchKeydown,
@@ -331,6 +335,7 @@ export function createOverlay() {
   container.style.transform = "translate3d(0, 0, 0)"; // GPU acceleration
   container.setAttribute("role", "dialog");
   container.setAttribute("aria-modal", "true");
+  applyPanelStyleContract(overlay, container);
 
   // Search + actions row
   const searchRow = document.createElement("div");
@@ -465,6 +470,7 @@ export function createOverlay() {
 
     // Persist preference globally via chrome.storage (applies across all sites)
     setGlobalViewMode(view);
+    syncPanelDensity(container, grid, state.filteredTabs.length);
   });
 
   // Cache DOM references
@@ -757,6 +763,7 @@ function createQuickSwitchOverlay() {
   container.style.transform = "translate3d(0, 0, 0)";
   container.setAttribute("role", "dialog");
   container.setAttribute("aria-modal", "true");
+  applyPanelStyleContract(overlay, container);
 
   // Section header with title and view toggle
   const sectionHeader = document.createElement("div");
@@ -874,6 +881,7 @@ function createQuickSwitchOverlay() {
 
     // Update grid class
     grid.classList.toggle("list-view", view === "list");
+    syncPanelDensity(container, grid, quickSwitchCards.length);
   });
 
   // Click backdrop to close
@@ -972,6 +980,11 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
   });
 
   grid.appendChild(fragment);
+  syncPanelDensity(
+    quickSwitchGrid?.closest(".tab-flow-container") as HTMLElement | null,
+    quickSwitchGrid,
+    tabs.length,
+  );
   updateQuickSwitchSelection(true);
 }
 
