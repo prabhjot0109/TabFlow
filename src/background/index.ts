@@ -585,8 +585,9 @@ async function handleShowTabFlow(): Promise<void> {
 
     if (!delivered) {
       console.warn(
-        "[INJECT] Content script unavailable. Overlay could not be shown.",
+        "[INJECT] Content script unavailable. Falling back to popup window.",
       );
+      await openFlowPopup(tabsData, groupsData, activeTab.id);
       return;
     }
 
@@ -725,8 +726,9 @@ async function handleQuickSwitch(): Promise<void> {
 
     if (!delivered) {
       console.warn(
-        "[INJECT] Content script unavailable. Overlay could not be shown.",
+        "[INJECT] Content script unavailable. Falling back to popup window.",
       );
+      await openQuickSwitchPopup(tabsData, activeTab.id);
       return;
     }
 

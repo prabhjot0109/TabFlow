@@ -313,6 +313,7 @@ export function isTabCapturable(tab: chrome.tabs.Tab): boolean {
   // Protected schemes that cannot be scripted
   const protectedSchemes = [
     "chrome://",
+    "chrome-extension://",
     "edge://",
     "devtools://",
     "view-source:",
