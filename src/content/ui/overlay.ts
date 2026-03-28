@@ -117,6 +117,54 @@ function createFocusGuard(onFocus: () => void): HTMLElement {
   return guard;
 }
 
+function createTopLayerOverlay(
+  id: string,
+  className: string,
+  onCancel: () => void,
+): HTMLDialogElement {
+  const overlay = document.createElement("dialog");
+  overlay.id = id;
+  overlay.className = className;
+  overlay.style.visibility = "hidden";
+  overlay.style.pointerEvents = "none";
+  overlay.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    onCancel();
+  });
+  return overlay;
+}
+
+function showOverlayInTopLayer(overlay: HTMLElement | null): void {
+  if (!(overlay instanceof HTMLDialogElement)) return;
+
+  ensureHostMountedAbovePage();
+
+  if (!overlay.open) {
+    try {
+      overlay.showModal();
+    } catch (error) {
+      log("[Tab Flow] Failed to enter top layer, using layered fallback:", error);
+      overlay.setAttribute("open", "");
+    }
+  }
+
+  overlay.style.visibility = "visible";
+  overlay.style.pointerEvents = "auto";
+}
+
+function hideOverlayFromTopLayer(overlay: HTMLElement | null): void {
+  if (!(overlay instanceof HTMLDialogElement)) return;
+
+  overlay.style.visibility = "hidden";
+  overlay.style.pointerEvents = "none";
+
+  if (overlay.open) {
+    overlay.close();
+  } else {
+    overlay.removeAttribute("open");
+  }
+}
+
 // ============================================================================
 // GLOBAL VIEW MODE (persisted via chrome.storage.local, applies across all sites)
 // ============================================================================
@@ -316,13 +364,11 @@ export function createOverlay() {
   }
 
   // Create overlay container
-  const overlay = document.createElement("div");
-  overlay.id = "visual-tab-flow-overlay";
-  overlay.className = "tab-flow-overlay";
-  overlay.style.willChange = "opacity"; // GPU hint
-  overlay.style.display = "flex";
-  overlay.style.visibility = "hidden";
-  overlay.style.pointerEvents = "none";
+  const overlay = createTopLayerOverlay(
+    "visual-tab-flow-overlay",
+    "tab-flow-overlay",
+    closeOverlay,
+  );
 
   // Create backdrop
   const backdrop = document.createElement("div");
@@ -332,7 +378,6 @@ export function createOverlay() {
   // Create main container
   const container = document.createElement("div");
   container.className = "tab-flow-container";
-  container.style.transform = "translate3d(0, 0, 0)"; // GPU acceleration
   container.setAttribute("role", "dialog");
   container.setAttribute("aria-modal", "true");
   applyPanelStyleContract(overlay, container);
@@ -419,7 +464,6 @@ export function createOverlay() {
   grid.id = "tab-flow-grid";
   grid.setAttribute("role", "listbox");
   grid.setAttribute("aria-label", "Open tabs");
-  grid.style.transform = "translate3d(0, 0, 0)"; // GPU acceleration
   container.appendChild(grid);
 
   // Help text - Raycast-style action bar (centered)
@@ -530,34 +574,7 @@ export function showTabFlow(
   // Ensure host is mounted above page and inside fullscreen container when needed.
   ensureHostMountedAbovePage();
 
-  // Ensure visual state is correct immediately
-  {
-    overlayEl.style.visibility = "visible";
-    overlayEl.style.pointerEvents = "auto";
-    overlayEl.style.display = "flex";
-    // Force a reflow or just assume RAF handles the transition reset?
-    // If we are fading out (opacity 0.5 -> 0), we want to snap back to 1 or fade in?
-    // Use RAF to ensure it transitions nicely if possible, or just snap if it feels faster.
-    // Snapping to 1 is safer for "instant" feel if user mashed the key.
-
-    // But let's keep the fade-in animation logic from below, just ensure we start from current opacity if possible.
-    // Actually, standard logic below sets opacity to 0 then 1.
-    // If we are "rescuing" a closing overlay, we might just want to set opacity 1.
-
-    // Let's assume standard flow:
-    // If we are recovering, we might want to skip the "set opacity 0" step if it's already visible?
-    // No, let's keep it simple: Reset to 0 then animate to 1 ensures consistency, BUT causes flicker if it was at 0.5.
-
-    // Better:
-    // If it was closing, we want to reverse the fade (0 -> 1).
-    // If it was already visible (but closing), opacity is animating to 0.
-    // We set it to computed style opacity?
-    // state.overlay.style.opacity = "0" was set in closeOverlay.
-    // So it is fading to 0.
-
-    // Let's just reset the animation.
-    overlayEl.style.opacity = "0";
-  }
+  showOverlayInTopLayer(overlayEl);
 
   state.activeTabs = tabs;
   state.currentTabs = tabs;
@@ -599,8 +616,6 @@ export function showTabFlow(
   // Make visible immediately to allow focus and event trapping
   overlayEl.style.visibility = "visible";
   overlayEl.style.pointerEvents = "auto";
-  overlayEl.style.display = "flex";
-  overlayEl.style.opacity = "0";
   state.isOverlayVisible = true;
 
   // Blur page and focus search immediately
@@ -615,15 +630,6 @@ export function showTabFlow(
   if (state.domCache.grid) {
     state.domCache.grid.scrollTop = 0;
   }
-
-  // Animate opacity using RAF
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (state.overlay) {
-        state.overlay.style.opacity = "1";
-      }
-    });
-  });
 
   // Add keyboard listeners in capture phase so they still work even if
   // we stop bubbling out of the shadow DOM to prevent site shortcuts.
@@ -660,15 +666,6 @@ export function showTabFlow(
     true
   );
 
-  // Periodic focus check
-  if (state.focusInterval) clearInterval(state.focusInterval);
-  state.focusInterval = setInterval(() => {
-    if (state.isOverlayVisible && state.domCache.searchBox) {
-      if (document.activeElement !== state.domCache.searchBox) {
-        state.domCache.searchBox.focus();
-      }
-    }
-  }, 100);
 }
 
 // ============================================================================
@@ -755,10 +752,11 @@ function createQuickSwitchOverlay() {
   if (!shadowRoot) return;
 
   // Create overlay container
-  const overlay = document.createElement("div");
-  overlay.id = "quick-switch-overlay";
-  overlay.className = "tab-flow-overlay quick-switch-mode";
-  overlay.style.willChange = "opacity";
+  const overlay = createTopLayerOverlay(
+    "quick-switch-overlay",
+    "tab-flow-overlay quick-switch-mode",
+    closeQuickSwitch,
+  );
 
   // Create backdrop
   const backdrop = document.createElement("div");
@@ -768,7 +766,6 @@ function createQuickSwitchOverlay() {
   // Create compact container
   const container = document.createElement("div");
   container.className = "tab-flow-container quick-switch-container";
-  container.style.transform = "translate3d(0, 0, 0)";
   container.setAttribute("role", "dialog");
   container.setAttribute("aria-modal", "true");
   applyPanelStyleContract(overlay, container);
@@ -827,7 +824,6 @@ function createQuickSwitchOverlay() {
   grid.setAttribute("role", "listbox");
   grid.setAttribute("aria-label", "Quick switch tabs");
   grid.tabIndex = 0;
-  grid.style.transform = "translate3d(0, 0, 0)";
   container.appendChild(grid);
 
   // Help text
@@ -1102,12 +1098,7 @@ export function closeQuickSwitch() {
   clearQuickSwitchAutoCommit();
 
   if (quickSwitchOverlay) {
-    quickSwitchOverlay.style.opacity = "0";
-    setTimeout(() => {
-      if (quickSwitchOverlay) {
-        quickSwitchOverlay.style.display = "none";
-      }
-    }, 200);
+    hideOverlayFromTopLayer(quickSwitchOverlay);
   }
 
   // Remove keyboard listeners
@@ -1229,8 +1220,7 @@ export async function showQuickSwitch(
   }
 
   // Show overlay
-  quickSwitchOverlay.style.display = "flex";
-  quickSwitchOverlay.style.opacity = "0";
+  showOverlayInTopLayer(quickSwitchOverlay);
 
   // Add keyboard listeners before rendering the tab list so Alt release is not
   // missed when many tabs make DOM work expensive.
@@ -1249,15 +1239,6 @@ export async function showQuickSwitch(
 
   // Render tabs after the quick-switch commit listeners are active.
   renderQuickSwitchTabs(tabs);
-
-  // Animate in
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (quickSwitchOverlay) {
-        quickSwitchOverlay.style.opacity = "1";
-      }
-    });
-  });
 
   scheduleQuickSwitchAutoCommit();
 }

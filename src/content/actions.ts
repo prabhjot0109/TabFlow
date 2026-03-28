@@ -83,50 +83,48 @@ export function closeOverlay() {
     if (state.isClosing) return;
 
     state.isClosing = true;
+    if (state.closeTimeout) {
+      clearTimeout(state.closeTimeout);
+      state.closeTimeout = null;
+    }
 
-    // Immediately restore page interaction, even while we fade out.
+    // Immediately restore page interaction and remove the overlay from the top layer.
     focus.unlockPageInteraction();
+    if (state.overlay) {
+      state.overlay.style.visibility = "hidden";
+      state.overlay.style.pointerEvents = "none";
 
-    // GPU-accelerated fade-out
-    requestAnimationFrame(() => {
-      if (state.overlay) {
-        state.overlay.style.opacity = "0";
+      if (state.overlay instanceof HTMLDialogElement) {
+        if (state.overlay.open) {
+          state.overlay.close();
+        } else {
+          state.overlay.removeAttribute("open");
+        }
       }
+    }
+    state.isOverlayVisible = false;
+    state.isClosing = false;
 
-      if (state.closeTimeout) clearTimeout(state.closeTimeout);
+    // Clear focus enforcement interval
+    if (state.focusInterval) {
+      clearInterval(state.focusInterval);
+      state.focusInterval = null;
+    }
 
-      state.closeTimeout = setTimeout(() => {
-        state.closeTimeout = null;
-        state.isClosing = false;
+    // Cleanup
+    state.lastFullscreenElement = null;
+    cleanupGlobalListeners();
 
-        if (state.overlay) {
-          state.overlay.style.visibility = "hidden";
-          state.overlay.style.pointerEvents = "none";
-        }
-        state.isOverlayVisible = false;
+    if (state.intersectionObserver) {
+      state.intersectionObserver.disconnect();
+      state.intersectionObserver = null;
+    }
 
-        // Clear focus enforcement interval
-        if (state.focusInterval) {
-          clearInterval(state.focusInterval);
-          state.focusInterval = null;
-        }
-
-        // Cleanup
-        state.lastFullscreenElement = null;
-        cleanupGlobalListeners();
-
-        if (state.intersectionObserver) {
-          state.intersectionObserver.disconnect();
-          state.intersectionObserver = null;
-        }
-
-        // Clean up resize observer
-        if (state.resizeObserver) {
-          state.resizeObserver.disconnect();
-          state.resizeObserver = null;
-        }
-      }, 200); // Match CSS transition
-    });
+    // Clean up resize observer
+    if (state.resizeObserver) {
+      state.resizeObserver.disconnect();
+      state.resizeObserver = null;
+    }
   } catch (error) {
     console.error("[Tab Flow] Error in closeOverlay:", error);
     // Force cleanup even on error

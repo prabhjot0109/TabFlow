@@ -20,11 +20,14 @@
 
   /* Ensure host doesn't affect page layout */
   display: contents !important;
-  color-scheme: dark light;
   direction: ltr !important;
   text-size-adjust: 100%;
+}
 
-  /* CSS Custom Properties - Monochrome Theme (White/Grey/Black) */
+/* Overlay */
+.tab-flow-overlay {
+  /* Keep tokens on an internal shadow-DOM node so page CSS cannot override them. */
+  color-scheme: dark light;
   --bg-overlay: transparent;
   --bg-surface: #161616;
   --bg-glass: #303030;
@@ -45,8 +48,6 @@
   --success: #59d499;
   --grid-card-height: 124px;
   --grid-thumb-min-height: 70px;
-
-  /* Raycast-style Shape - Subtle Rounded */
   --radius-3xl: 12px;
   --radius-2xl: 10px;
   --radius-xl: 8px;
@@ -55,18 +56,48 @@
   --radius-sm: 5px;
   --radius-xs: 4px;
   --radius-full: 9999px;
-
   --shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.18);
   --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.12);
   --font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
   --transition-fast: 0.1s ease;
   --transition-smooth: 0.15s cubic-bezier(0.2, 0, 0, 1);
+  all: initial;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: none;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
+  padding: var(--tab-flow-viewport-gap, 24px);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+  letter-spacing: normal;
+  text-transform: none;
+  text-indent: 0;
+  text-shadow: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  pointer-events: auto;
+  overscroll-behavior: contain;
+  overflow: visible;
+  contain: layout style paint;
+  isolation: isolate;
 }
 
 @media (prefers-color-scheme: light) {
-  :host {
-    /* Monochrome Light Theme */
+  .tab-flow-overlay {
     --bg-overlay: transparent;
     --bg-surface: #ffffff;
     --bg-glass: #f5f5f5;
@@ -88,25 +119,12 @@
   }
 }
 
-/* Overlay */
-.tab-flow-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: var(--tab-flow-viewport-gap, 24px);
-  font-family: var(--font-family);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* Enable pointer events on the overlay when visible */
-  pointer-events: auto;
-  /* Prevent scroll chaining to the host page */
-  overscroll-behavior: contain;
+.tab-flow-overlay[open] {
+  display: flex;
+}
+
+.tab-flow-overlay::backdrop {
+  background: transparent;
 }
 
 .tab-flow-focus-guard {
@@ -146,12 +164,12 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-3xl);
-  box-shadow: var(--shadow-xl);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
-  animation: containerFadeIn 0.15s ease-out;
+  contain: layout style paint;
 }
 
 .tab-flow-container[data-panel-density="compact"] {
@@ -281,6 +299,10 @@
   justify-content: space-between;
   padding: 10px 14px 4px 14px;
   flex-shrink: 0;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 .tab-flow-section-title {
@@ -311,7 +333,9 @@
   color: var(--text-muted);
   border-radius: var(--radius-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .view-toggle-btn:hover {
@@ -345,7 +369,9 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 16px;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .recent-back-btn:hover {
@@ -573,7 +599,9 @@
   display: flex;
   flex-direction: column;
   height: var(--grid-card-height);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
   box-shadow: none;
 
   /* CSS Containment - isolates layout/paint/style for better performance */
@@ -603,7 +631,6 @@
   left: 8px;
   font-size: 12px;
   z-index: 5;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
 
 /* Audio indicator */
@@ -643,21 +670,13 @@
   padding: 0 14px !important;
   gap: 12px !important;
   border: 1px solid var(--border-subtle) !important;
-  background: linear-gradient(
-    135deg,
-    rgba(66, 133, 244, 0.08) 0%,
-    rgba(66, 133, 244, 0.04) 100%
-  ) !important;
+  background: var(--card-bg) !important;
 }
 
 .tab-card[data-web-search="1"]:hover,
 .tab-card[data-web-search="1"].selected {
   border-color: #4285f4 !important;
-  background: linear-gradient(
-    135deg,
-    rgba(66, 133, 244, 0.15) 0%,
-    rgba(66, 133, 244, 0.08) 100%
-  ) !important;
+  background: var(--card-hover) !important;
 }
 
 .tab-card[data-web-search="1"] .tab-thumbnail {
@@ -701,18 +720,14 @@
 }
 
 .tab-card[data-web-search="1"]:hover {
-  transform: translateY(-2px);
+  transform: none;
 }
 
 /* Thumbnail Area */
 .tab-thumbnail {
   flex: 1;
   min-height: var(--grid-thumb-min-height);
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.02) 0%,
-    rgba(0, 0, 0, 0.08) 100%
-  );
+  background: var(--bg-glass);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -751,7 +766,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg-glass) 0%, transparent 100%);
+  background: var(--bg-glass);
 }
 
 .tab-card[data-web-search="1"] .favicon-tile {
@@ -1066,18 +1081,6 @@ kbd:hover {
   color: var(--text-primary);
 }
 
-/* Animations - Simplified for performance (no blur, minimal transforms) */
-@keyframes containerFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Recent mode styles - Column Layout */
 .tab-flow-grid.recent-mode .tab-card {
   width: 100%;
@@ -1334,7 +1337,9 @@ kbd:hover {
   background: var(--card-bg);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .history-favicon {
@@ -1424,6 +1429,11 @@ kbd:hover {
 .quick-switch-container .tab-flow-section-header {
   padding: 12px 16px 8px;
   margin: 0;
+  border: none !important;
+  border-bottom: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 .quick-switch-container .tab-flow-section-title {
@@ -1435,7 +1445,11 @@ kbd:hover {
 .quick-switch-grid {
   padding: 10px 12px !important;
   gap: 10px !important;
-
+  border: none !important;
+  border-top: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
 }
