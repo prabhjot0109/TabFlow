@@ -681,6 +681,14 @@ let cachedQuickSwitchViewMode: "grid" | "list" = "grid"; // Default to grid
 let quickSwitchCards: HTMLElement[] = [];
 let quickSwitchLastSelectedIndex = -1;
 
+// Timestamp when the quick switch overlay became ready for Alt-release switching.
+// This prevents premature switches when Alt is released during initial render.
+let quickSwitchReadyTime = 0;
+const QUICK_SWITCH_MIN_DISPLAY_MS = 150;
+const QUICK_SWITCH_IDLE_AUTOCOMMIT_MS = 3000;
+let quickSwitchAutoCommitTimeout: ReturnType<typeof setTimeout> | null = null;
+let cleanupQuickSwitchAutoCommitListeners: (() => void) | null = null;
+
 // Load quick switch view mode from chrome.storage once on script initialization
 try {
   chrome.storage.local.get(["QuickSwitchViewMode"], (result) => {
@@ -995,6 +1003,64 @@ function applyQuickSwitchSelection(index: number, selected: boolean) {
   card.setAttribute("aria-selected", selected ? "true" : "false");
 }
 
+function clearQuickSwitchAutoCommit() {
+  if (quickSwitchAutoCommitTimeout) {
+    clearTimeout(quickSwitchAutoCommitTimeout);
+    quickSwitchAutoCommitTimeout = null;
+  }
+
+  cleanupQuickSwitchAutoCommitListeners?.();
+  cleanupQuickSwitchAutoCommitListeners = null;
+}
+
+function scheduleQuickSwitchAutoCommit() {
+  clearQuickSwitchAutoCommit();
+
+  quickSwitchAutoCommitTimeout = setTimeout(() => {
+    quickSwitchAutoCommitTimeout = null;
+    cleanupQuickSwitchAutoCommitListeners?.();
+    cleanupQuickSwitchAutoCommitListeners = null;
+
+    if (!state.isQuickSwitchVisible) return;
+
+    // Fallback for cases where Alt was released before the page/popup could
+    // finish wiring the quick-switch listeners.
+    switchToQuickSwitchSelected();
+  }, QUICK_SWITCH_IDLE_AUTOCOMMIT_MS);
+
+  const cancelAutoCommitOnInteraction = (event: Event) => {
+    if (
+      event instanceof KeyboardEvent &&
+      (event.key === "Alt" ||
+        event.key === "Shift" ||
+        event.key === "Control" ||
+        event.key === "Meta")
+    ) {
+      return;
+    }
+
+    clearQuickSwitchAutoCommit();
+  };
+
+  document.addEventListener("keydown", cancelAutoCommitOnInteraction, true);
+  document.addEventListener("pointerdown", cancelAutoCommitOnInteraction, true);
+  document.addEventListener("wheel", cancelAutoCommitOnInteraction, true);
+
+  cleanupQuickSwitchAutoCommitListeners = () => {
+    document.removeEventListener(
+      "keydown",
+      cancelAutoCommitOnInteraction,
+      true
+    );
+    document.removeEventListener(
+      "pointerdown",
+      cancelAutoCommitOnInteraction,
+      true
+    );
+    document.removeEventListener("wheel", cancelAutoCommitOnInteraction, true);
+  };
+}
+
 export function updateQuickSwitchSelection(forceRefresh = false) {
   if (!quickSwitchGrid || quickSwitchCards.length === 0) return;
 
@@ -1029,8 +1095,11 @@ export function closeQuickSwitch() {
   if (!state.isQuickSwitchVisible) return;
 
   state.isQuickSwitchVisible = false;
+  state.quickSwitchTabs = [];
   focus.unlockPageInteraction();
   quickSwitchLastSelectedIndex = -1;
+  quickSwitchReadyTime = 0;
+  clearQuickSwitchAutoCommit();
 
   if (quickSwitchOverlay) {
     quickSwitchOverlay.style.opacity = "0";
@@ -1084,20 +1153,43 @@ function handleQuickSwitchKeyDown(e: KeyboardEvent) {
   }
 }
 
+function switchToQuickSwitchSelected() {
+  clearQuickSwitchAutoCommit();
+
+  if (state.quickSwitchTabs.length > 0 && state.selectedIndex >= 0) {
+    const tab = state.quickSwitchTabs[state.selectedIndex];
+    if (tab?.id) {
+      chrome.runtime.sendMessage({ action: "switchToTab", tabId: tab.id });
+      closeQuickSwitch();
+    }
+  }
+}
+
 function handleQuickSwitchKeyUp(e: KeyboardEvent) {
   if (!state.isQuickSwitchVisible) return;
 
-  // When Alt is released, switch to the selected tab
-  if (e.key === "Alt" || (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey)) {
-    e.preventDefault();
-    if (state.quickSwitchTabs.length > 0 && state.selectedIndex >= 0) {
-      const tab = state.quickSwitchTabs[state.selectedIndex];
-      if (tab?.id) {
-        chrome.runtime.sendMessage({ action: "switchToTab", tabId: tab.id });
-        closeQuickSwitch();
+  // Only react to the Alt key being released — this is the "commit" gesture,
+  // matching Windows Alt+Tab behavior. Ignore all other keyups.
+  if (e.key !== "Alt") return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Enforce a minimum display time so the user can actually see the overlay.
+  // If Alt is released too quickly (during render), defer the switch until
+  // the grace period expires.
+  const elapsed = Date.now() - quickSwitchReadyTime;
+  if (elapsed < QUICK_SWITCH_MIN_DISPLAY_MS) {
+    const remaining = QUICK_SWITCH_MIN_DISPLAY_MS - elapsed;
+    setTimeout(() => {
+      if (state.isQuickSwitchVisible) {
+        switchToQuickSwitchSelected();
       }
-    }
+    }, remaining);
+    return;
   }
+
+  switchToQuickSwitchSelected();
 }
 
 export async function showQuickSwitch(
@@ -1124,6 +1216,7 @@ export async function showQuickSwitch(
 
   state.isQuickSwitchVisible = true;
   state.quickSwitchTabs = tabs;
+  quickSwitchReadyTime = Date.now();
 
   // Start selection at the second tab (previous tab, like Alt+Tab)
   const activeIndex = tabs.findIndex((tab: Tab) => tab.id === activeTabId);
@@ -1135,12 +1228,14 @@ export async function showQuickSwitch(
     state.selectedIndex = 0;
   }
 
-  // Render tabs
-  renderQuickSwitchTabs(tabs);
-
   // Show overlay
   quickSwitchOverlay.style.display = "flex";
   quickSwitchOverlay.style.opacity = "0";
+
+  // Add keyboard listeners before rendering the tab list so Alt release is not
+  // missed when many tabs make DOM work expensive.
+  document.addEventListener("keydown", handleQuickSwitchKeyDown, true);
+  document.addEventListener("keyup", handleQuickSwitchKeyUp, true);
 
   // Lock page interaction
   focus.lockPageInteraction();
@@ -1152,6 +1247,9 @@ export async function showQuickSwitch(
     quickSwitchGrid.focus();
   }
 
+  // Render tabs after the quick-switch commit listeners are active.
+  renderQuickSwitchTabs(tabs);
+
   // Animate in
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -1161,7 +1259,5 @@ export async function showQuickSwitch(
     });
   });
 
-  // Add keyboard listeners
-  document.addEventListener("keydown", handleQuickSwitchKeyDown, true);
-  document.addEventListener("keyup", handleQuickSwitchKeyUp, true);
+  scheduleQuickSwitchAutoCommit();
 }

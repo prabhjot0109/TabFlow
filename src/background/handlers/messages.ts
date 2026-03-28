@@ -211,7 +211,12 @@ export async function handleMessage(
           return;
         }
         try {
-          await chrome.tabs.update(parsedRequest.tabId, { active: true });
+          const targetTab = await chrome.tabs.update(parsedRequest.tabId, { active: true });
+          // Also focus the window containing the target tab — critical for
+          // quick switch popup fallback where the popup is a separate window.
+          if (targetTab?.windowId) {
+            await chrome.windows.update(targetTab.windowId, { focused: true });
+          }
           sendResponse({ success: true });
         } catch (error: unknown) {
           console.error("[ERROR] Failed to switch to tab:", error);

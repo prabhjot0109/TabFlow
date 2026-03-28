@@ -19,9 +19,44 @@ type QuickSwitchPayload = {
   activeTabId: number | null;
 };
 
+// Minimum time (ms) the popup must be open before blur/Alt-release can close it.
+// This prevents the popup from closing due to transient focus changes during
+// window creation or when there are many tabs causing slow render.
+const MIN_POPUP_DISPLAY_MS = 200;
+
 function setupPopupLifecycle(closePopupWindowSoon: () => void): void {
+  const popupOpenTime = Date.now();
+
+  // Debounced close — only close if the popup has been visible long enough.
+  // This prevents premature closing from transient focus shifts during
+  // window creation and tab switching.
+  let blurCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const debouncedClose = () => {
+    if (blurCloseTimer) clearTimeout(blurCloseTimer);
+    blurCloseTimer = setTimeout(() => {
+      closePopupWindowSoon();
+    }, 50);
+  };
+
+  // Cancel debounced close if focus returns to the popup
+  window.addEventListener("focus", () => {
+    if (blurCloseTimer) {
+      clearTimeout(blurCloseTimer);
+      blurCloseTimer = null;
+    }
+  });
+
   // Auto-close once focus leaves the popup (e.g. tab switch completed).
-  window.addEventListener("blur", closePopupWindowSoon);
+  // Use debounced version to handle transient focus changes.
+  window.addEventListener("blur", () => {
+    const elapsed = Date.now() - popupOpenTime;
+    if (elapsed < MIN_POPUP_DISPLAY_MS) {
+      // Too soon — the popup is still initializing, ignore this blur
+      return;
+    }
+    debouncedClose();
+  });
 
   // Close on explicit cancel/confirm keys.
   document.addEventListener("keydown", (event) => {
@@ -30,10 +65,22 @@ function setupPopupLifecycle(closePopupWindowSoon: () => void): void {
     }
   }, true);
 
+  // Only react to the Alt key being released — this is the important
+  // "commit" gesture that mirrors Windows Alt+Tab behavior.
   document.addEventListener("keyup", (event) => {
-    if (event.key === "Alt" || (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey)) {
-      closePopupWindowSoon();
+    if (event.key !== "Alt") return;
+
+    const elapsed = Date.now() - popupOpenTime;
+    if (elapsed < MIN_POPUP_DISPLAY_MS) {
+      // Alt released too quickly during render — defer the close
+      const remaining = MIN_POPUP_DISPLAY_MS - elapsed;
+      setTimeout(() => {
+        closePopupWindowSoon();
+      }, remaining);
+      return;
     }
+
+    closePopupWindowSoon();
   }, true);
 }
 
