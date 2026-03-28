@@ -696,7 +696,9 @@ export async function sendMessageWithRetry(
         const injected = await tryInjectContentScript(tabId);
         if (!injected) return false;
 
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        // executeScript resolves after the content script has loaded, so only
+        // keep a very small buffer here to avoid slowing quick-switch startup.
+        await new Promise((resolve) => setTimeout(resolve, 40));
         await chrome.tabs.sendMessage(tabId, message);
         return true;
       } catch {

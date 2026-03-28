@@ -142,7 +142,7 @@ async function initialize(): Promise<void> {
     cycleAction: {
       action: "QuickSwitchPopupCycleNext",
       onCycle: () => {
-        advanceQuickSwitchSelection(1);
+        advanceQuickSwitchSelection(1, { clearAutoCommit: true });
       },
     },
   });

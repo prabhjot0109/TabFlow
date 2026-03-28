@@ -682,7 +682,7 @@ let quickSwitchLastSelectedIndex = -1;
 // This prevents premature switches when Alt is released during initial render.
 let quickSwitchReadyTime = 0;
 const QUICK_SWITCH_MIN_DISPLAY_MS = 150;
-const QUICK_SWITCH_IDLE_AUTOCOMMIT_MS = 3000;
+const QUICK_SWITCH_OPEN_AUTOCOMMIT_MS = 1200;
 let quickSwitchAutoCommitTimeout: ReturnType<typeof setTimeout> | null = null;
 let cleanupQuickSwitchAutoCommitListeners: (() => void) | null = null;
 
@@ -1009,7 +1009,7 @@ function clearQuickSwitchAutoCommit() {
   cleanupQuickSwitchAutoCommitListeners = null;
 }
 
-function scheduleQuickSwitchAutoCommit() {
+function scheduleQuickSwitchAutoCommit(delayMs: number) {
   clearQuickSwitchAutoCommit();
 
   quickSwitchAutoCommitTimeout = setTimeout(() => {
@@ -1019,10 +1019,11 @@ function scheduleQuickSwitchAutoCommit() {
 
     if (!state.isQuickSwitchVisible) return;
 
-    // Fallback for cases where Alt was released before the page/popup could
-    // finish wiring the quick-switch listeners.
+    // Fallback for cases where Chrome eats the Alt-release event. Keep this as
+    // a short debounce so the last highlighted tab commits without waiting for
+    // Enter or a long timeout.
     switchToQuickSwitchSelected();
-  }, QUICK_SWITCH_IDLE_AUTOCOMMIT_MS);
+  }, delayMs);
 
   const cancelAutoCommitOnInteraction = (event: Event) => {
     if (
@@ -1079,8 +1080,15 @@ export function updateQuickSwitchSelection(forceRefresh = false) {
   quickSwitchLastSelectedIndex = selectedIndex;
 }
 
-export function advanceQuickSwitchSelection(step: number) {
+export function advanceQuickSwitchSelection(
+  step: number,
+  options: { clearAutoCommit?: boolean } = {}
+) {
   if (!state.quickSwitchTabs || state.quickSwitchTabs.length === 0) return;
+
+  if (options.clearAutoCommit) {
+    clearQuickSwitchAutoCommit();
+  }
 
   const total = state.quickSwitchTabs.length;
   state.selectedIndex = (state.selectedIndex + step + total) % total;
@@ -1102,12 +1110,15 @@ export function closeQuickSwitch() {
   }
 
   // Remove keyboard listeners
+  window.removeEventListener("keydown", handleQuickSwitchKeyDown, true);
+  window.removeEventListener("keyup", handleQuickSwitchKeyUp, true);
   document.removeEventListener("keydown", handleQuickSwitchKeyDown, true);
   document.removeEventListener("keyup", handleQuickSwitchKeyUp, true);
 }
 
 function handleQuickSwitchKeyDown(e: KeyboardEvent) {
   if (!state.isQuickSwitchVisible) return;
+  if (e.defaultPrevented) return;
 
   // Escape to cancel
   if (e.key === "Escape") {
@@ -1120,12 +1131,14 @@ function handleQuickSwitchKeyDown(e: KeyboardEvent) {
   // Arrow navigation
   if (e.key === "ArrowDown" || e.key === "ArrowRight") {
     e.preventDefault();
+    clearQuickSwitchAutoCommit();
     advanceQuickSwitchSelection(1);
     return;
   }
 
   if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
     e.preventDefault();
+    clearQuickSwitchAutoCommit();
     advanceQuickSwitchSelection(-1);
     return;
   }
@@ -1158,6 +1171,7 @@ function switchToQuickSwitchSelected() {
 
 function handleQuickSwitchKeyUp(e: KeyboardEvent) {
   if (!state.isQuickSwitchVisible) return;
+  if (e.defaultPrevented) return;
 
   // Only react to the Alt key being released — this is the "commit" gesture,
   // matching Windows Alt+Tab behavior. Ignore all other keyups.
@@ -1224,6 +1238,8 @@ export async function showQuickSwitch(
 
   // Add keyboard listeners before rendering the tab list so Alt release is not
   // missed when many tabs make DOM work expensive.
+  window.addEventListener("keydown", handleQuickSwitchKeyDown, true);
+  window.addEventListener("keyup", handleQuickSwitchKeyUp, true);
   document.addEventListener("keydown", handleQuickSwitchKeyDown, true);
   document.addEventListener("keyup", handleQuickSwitchKeyUp, true);
 
@@ -1240,5 +1256,5 @@ export async function showQuickSwitch(
   // Render tabs after the quick-switch commit listeners are active.
   renderQuickSwitchTabs(tabs);
 
-  scheduleQuickSwitchAutoCommit();
+  scheduleQuickSwitchAutoCommit(QUICK_SWITCH_OPEN_AUTOCOMMIT_MS);
 }

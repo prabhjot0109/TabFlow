@@ -105,7 +105,7 @@ chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
     // Quick switch (Alt+Q) - Alt+Tab style without search bar
     if (state.isQuickSwitchVisible) {
       // Cycle to next tab
-      advanceQuickSwitchSelection(1);
+      advanceQuickSwitchSelection(1, { clearAutoCommit: true });
       sendResponse({ success: true, advanced: true });
       return true;
     }
@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
       sendResponse({ success: true, advanced: false });
       return true;
     }
-    advanceQuickSwitchSelection(1);
+    advanceQuickSwitchSelection(1, { clearAutoCommit: true });
     sendResponse({ success: true, advanced: true });
     return true;
   }
