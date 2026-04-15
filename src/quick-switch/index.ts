@@ -22,7 +22,7 @@ type QuickSwitchPayload = {
 // Minimum time (ms) the popup must be open before blur/Alt-release can close it.
 // This prevents the popup from closing due to transient focus changes during
 // window creation or when there are many tabs causing slow render.
-const MIN_POPUP_DISPLAY_MS = 200;
+const MIN_POPUP_DISPLAY_MS = 100;
 
 function setupPopupLifecycle(closePopupWindowSoon: () => void): void {
   const popupOpenTime = Date.now();
@@ -142,7 +142,7 @@ async function initialize(): Promise<void> {
     cycleAction: {
       action: "QuickSwitchPopupCycleNext",
       onCycle: () => {
-        advanceQuickSwitchSelection(1, { clearAutoCommit: true });
+        advanceQuickSwitchSelection(1);
       },
     },
   });

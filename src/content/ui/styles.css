@@ -145,22 +145,14 @@
 
 .tab-flow-container {
   position: relative;
-  inline-size: min(
-    var(--tab-flow-panel-width, 700px),
-    calc(100vw - (var(--tab-flow-viewport-gap, 20px) * 2))
-  );
-  block-size: min(
-    var(--tab-flow-panel-height, 500px),
-    calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2))
-  );
-  min-block-size: min(
-    var(--tab-flow-panel-min-height, 220px),
-    calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2))
-  );
-  max-block-size: min(
-    var(--tab-flow-panel-height, 500px),
-    calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2))
-  );
+  inline-size: min(var(--tab-flow-panel-width, 700px),
+      calc(100vw - (var(--tab-flow-viewport-gap, 20px) * 2)));
+  block-size: min(var(--tab-flow-panel-height, 500px),
+      calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2)));
+  min-block-size: min(var(--tab-flow-panel-min-height, 220px),
+      calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2)));
+  max-block-size: min(var(--tab-flow-panel-height, 500px),
+      calc(100vh - (var(--tab-flow-viewport-gap, 20px) * 2)));
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-3xl);
@@ -252,7 +244,7 @@
   transition: color var(--transition-fast);
 }
 
-.tab-flow-search:focus ~ .search-icon,
+.tab-flow-search:focus~.search-icon,
 .tab-flow-search-wrap:focus-within .search-icon {
   color: var(--text-muted);
   transform: none;
@@ -923,7 +915,8 @@
 /* Media Controls Container */
 .tab-media-controls {
   position: absolute;
-  bottom: 58px; /* Positioned above the info section in grid view */
+  bottom: 58px;
+  /* Positioned above the info section in grid view */
   right: 12px;
   display: flex;
   gap: 8px;
@@ -1394,6 +1387,7 @@ kbd:hover {
  * Respects user preference for reduced motion to prevent motion sickness
  * ============================================================================ */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

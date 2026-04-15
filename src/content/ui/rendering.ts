@@ -272,7 +272,8 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
     typeof tab.screenshot === "string" && tab.screenshot.length > 0
       ? tab.screenshot
       : null;
-  const hasValidScreenshot = Boolean(screenshot);
+  const isListView = Boolean(state.domCache.grid?.classList.contains("list-view"));
+  const hasValidScreenshot = Boolean(screenshot) && !isListView;
 
   // Add classes efficiently
   const classList = tabCard.classList;
@@ -310,7 +311,7 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
   titleEl.title = tabTitle;
 
   // Thumbnail content
-  if (tab.sessionId || !screenshot) {
+  if (tab.sessionId || !hasValidScreenshot) {
     // Show favicon tile
     const faviconTile = createFaviconTile(tab);
     thumbnail.appendChild(faviconTile);

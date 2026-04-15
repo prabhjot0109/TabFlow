@@ -5,16 +5,16 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_index.ts-loader-CywYCMDV.js": {
-    "file": "assets/index.ts-loader-CywYCMDV.js",
-    "src": "_index.ts-loader-CywYCMDV.js"
+  "_index.ts-loader-C9HrheM5.js": {
+    "file": "assets/index.ts-loader-C9HrheM5.js",
+    "src": "_index.ts-loader-C9HrheM5.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
     "name": "modulepreload-polyfill"
   },
-  "_overlay-SS3WuPA6.js": {
-    "file": "assets/overlay-SS3WuPA6.js",
+  "_overlay-BI_Lu6o4.js": {
+    "file": "assets/overlay-BI_Lu6o4.js",
     "name": "overlay",
     "imports": [
       "_panel-CLYIgvAq.js"
@@ -24,11 +24,11 @@
     "file": "assets/panel-CLYIgvAq.js",
     "name": "panel"
   },
-  "_protected-popup-CHU6fjyU.js": {
-    "file": "assets/protected-popup-CHU6fjyU.js",
+  "_protected-popup-DiDGD97H.js": {
+    "file": "assets/protected-popup-DiDGD97H.js",
     "name": "protected-popup",
     "imports": [
-      "_overlay-SS3WuPA6.js"
+      "_overlay-BI_Lu6o4.js"
     ]
   },
   "src/background/index.ts": {
@@ -41,24 +41,24 @@
     ]
   },
   "src/content/index.ts": {
-    "file": "assets/index.ts-BA9idXHn.js",
+    "file": "assets/index.ts-Q3vLPuMw.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
     "isEntry": true,
     "imports": [
-      "_overlay-SS3WuPA6.js",
+      "_overlay-BI_Lu6o4.js",
       "_panel-CLYIgvAq.js"
     ]
   },
   "src/flow/index.html": {
-    "file": "assets/Flow-DmGzf5t2.js",
+    "file": "assets/Flow-DMK8wsR_.js",
     "name": "Flow",
     "src": "src/flow/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-SS3WuPA6.js",
-      "_protected-popup-CHU6fjyU.js",
+      "_overlay-BI_Lu6o4.js",
+      "_protected-popup-DiDGD97H.js",
       "_panel-CLYIgvAq.js"
     ]
   },
@@ -87,14 +87,14 @@
     ]
   },
   "src/quick-switch/index.html": {
-    "file": "assets/QuickSwitch-B9kpl74b.js",
+    "file": "assets/QuickSwitch-DZwzYh4W.js",
     "name": "QuickSwitch",
     "src": "src/quick-switch/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-SS3WuPA6.js",
-      "_protected-popup-CHU6fjyU.js",
+      "_overlay-BI_Lu6o4.js",
+      "_protected-popup-DiDGD97H.js",
       "_panel-CLYIgvAq.js"
     ]
   }

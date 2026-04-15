@@ -285,7 +285,7 @@ export async function handleMessage(
                   return { success: true, playing: false };
                 }
                 for (const m of media) {
-                  m.play().catch(() => {});
+                  m.play().catch(() => { });
                 }
                 return { success: true, playing: true };
               },

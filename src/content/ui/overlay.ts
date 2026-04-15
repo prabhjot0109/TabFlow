@@ -514,7 +514,12 @@ export function createOverlay() {
 
     // Persist preference globally via chrome.storage (applies across all sites)
     setGlobalViewMode(view);
-    syncPanelDensity(container, grid, state.filteredTabs.length);
+
+    if (shouldUseVirtualRendering(state.filteredTabs.length)) {
+      renderTabsVirtual(state.filteredTabs);
+    } else {
+      renderTabsStandard(state.filteredTabs);
+    }
   });
 
   // Cache DOM references
@@ -681,10 +686,7 @@ let quickSwitchLastSelectedIndex = -1;
 // Timestamp when the quick switch overlay became ready for Alt-release switching.
 // This prevents premature switches when Alt is released during initial render.
 let quickSwitchReadyTime = 0;
-const QUICK_SWITCH_MIN_DISPLAY_MS = 150;
-const QUICK_SWITCH_OPEN_AUTOCOMMIT_MS = 1200;
-let quickSwitchAutoCommitTimeout: ReturnType<typeof setTimeout> | null = null;
-let cleanupQuickSwitchAutoCommitListeners: (() => void) | null = null;
+const QUICK_SWITCH_MIN_DISPLAY_MS = 100;
 
 // Load quick switch view mode from chrome.storage once on script initialization
 try {
@@ -999,65 +1001,6 @@ function applyQuickSwitchSelection(index: number, selected: boolean) {
   card.setAttribute("aria-selected", selected ? "true" : "false");
 }
 
-function clearQuickSwitchAutoCommit() {
-  if (quickSwitchAutoCommitTimeout) {
-    clearTimeout(quickSwitchAutoCommitTimeout);
-    quickSwitchAutoCommitTimeout = null;
-  }
-
-  cleanupQuickSwitchAutoCommitListeners?.();
-  cleanupQuickSwitchAutoCommitListeners = null;
-}
-
-function scheduleQuickSwitchAutoCommit(delayMs: number) {
-  clearQuickSwitchAutoCommit();
-
-  quickSwitchAutoCommitTimeout = setTimeout(() => {
-    quickSwitchAutoCommitTimeout = null;
-    cleanupQuickSwitchAutoCommitListeners?.();
-    cleanupQuickSwitchAutoCommitListeners = null;
-
-    if (!state.isQuickSwitchVisible) return;
-
-    // Fallback for cases where Chrome eats the Alt-release event. Keep this as
-    // a short debounce so the last highlighted tab commits without waiting for
-    // Enter or a long timeout.
-    switchToQuickSwitchSelected();
-  }, delayMs);
-
-  const cancelAutoCommitOnInteraction = (event: Event) => {
-    if (
-      event instanceof KeyboardEvent &&
-      (event.key === "Alt" ||
-        event.key === "Shift" ||
-        event.key === "Control" ||
-        event.key === "Meta")
-    ) {
-      return;
-    }
-
-    clearQuickSwitchAutoCommit();
-  };
-
-  document.addEventListener("keydown", cancelAutoCommitOnInteraction, true);
-  document.addEventListener("pointerdown", cancelAutoCommitOnInteraction, true);
-  document.addEventListener("wheel", cancelAutoCommitOnInteraction, true);
-
-  cleanupQuickSwitchAutoCommitListeners = () => {
-    document.removeEventListener(
-      "keydown",
-      cancelAutoCommitOnInteraction,
-      true
-    );
-    document.removeEventListener(
-      "pointerdown",
-      cancelAutoCommitOnInteraction,
-      true
-    );
-    document.removeEventListener("wheel", cancelAutoCommitOnInteraction, true);
-  };
-}
-
 export function updateQuickSwitchSelection(forceRefresh = false) {
   if (!quickSwitchGrid || quickSwitchCards.length === 0) return;
 
@@ -1080,15 +1023,8 @@ export function updateQuickSwitchSelection(forceRefresh = false) {
   quickSwitchLastSelectedIndex = selectedIndex;
 }
 
-export function advanceQuickSwitchSelection(
-  step: number,
-  options: { clearAutoCommit?: boolean } = {}
-) {
+export function advanceQuickSwitchSelection(step: number) {
   if (!state.quickSwitchTabs || state.quickSwitchTabs.length === 0) return;
-
-  if (options.clearAutoCommit) {
-    clearQuickSwitchAutoCommit();
-  }
 
   const total = state.quickSwitchTabs.length;
   state.selectedIndex = (state.selectedIndex + step + total) % total;
@@ -1103,7 +1039,6 @@ export function closeQuickSwitch() {
   focus.unlockPageInteraction();
   quickSwitchLastSelectedIndex = -1;
   quickSwitchReadyTime = 0;
-  clearQuickSwitchAutoCommit();
 
   if (quickSwitchOverlay) {
     hideOverlayFromTopLayer(quickSwitchOverlay);
@@ -1131,14 +1066,12 @@ function handleQuickSwitchKeyDown(e: KeyboardEvent) {
   // Arrow navigation
   if (e.key === "ArrowDown" || e.key === "ArrowRight") {
     e.preventDefault();
-    clearQuickSwitchAutoCommit();
     advanceQuickSwitchSelection(1);
     return;
   }
 
   if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
     e.preventDefault();
-    clearQuickSwitchAutoCommit();
     advanceQuickSwitchSelection(-1);
     return;
   }
@@ -1158,8 +1091,6 @@ function handleQuickSwitchKeyDown(e: KeyboardEvent) {
 }
 
 function switchToQuickSwitchSelected() {
-  clearQuickSwitchAutoCommit();
-
   if (state.quickSwitchTabs.length > 0 && state.selectedIndex >= 0) {
     const tab = state.quickSwitchTabs[state.selectedIndex];
     if (tab?.id) {
@@ -1255,6 +1186,4 @@ export async function showQuickSwitch(
 
   // Render tabs after the quick-switch commit listeners are active.
   renderQuickSwitchTabs(tabs);
-
-  scheduleQuickSwitchAutoCommit(QUICK_SWITCH_OPEN_AUTOCOMMIT_MS);
 }
