@@ -7,25 +7,29 @@ import {
   shouldUseVirtualRendering,
 } from "../ui/rendering";
 
-// Extend Window interface to include the Navigation API
-declare global {
-  interface Window {
-    navigation?: {
-      entries: () => Array<{
-        url: string | null;
-        key: string;
-        id: string;
-        index: number;
-        sameDocument: boolean;
-      }>;
-      currentEntry?: {
-        url: string | null;
-        key: string;
-        id: string;
-        index: number;
-      };
-    };
+type NavigationEntryLike = {
+  url: string | null;
+  index: number;
+};
+
+type NavigationApiLike = {
+  entries: () => NavigationEntryLike[];
+  currentEntry?: NavigationEntryLike | null;
+};
+
+function getNavigationApi(): NavigationApiLike | null {
+  const navigationApi = (window as unknown as { navigation?: unknown })
+    .navigation;
+  if (!navigationApi) {
+    return null;
   }
+
+  const typedNavigation = navigationApi as Partial<NavigationApiLike>;
+  if (typeof typedNavigation.entries !== "function") {
+    return null;
+  }
+
+  return typedNavigation as NavigationApiLike;
 }
 
 // Get browser's actual navigation history using the Navigation API
@@ -35,14 +39,16 @@ export function getNavigationHistory(): {
   forward: Array<{ url: string; title: string }>;
 } {
   try {
+    const navigationApi = getNavigationApi();
+
     // Check if Navigation API is available
-    if (!window.navigation || typeof window.navigation.entries !== "function") {
+    if (!navigationApi) {
       console.log("[Tab Flow] Navigation API not available");
       return { back: [], forward: [] };
     }
 
-    const entries = window.navigation.entries();
-    const currentEntry = window.navigation.currentEntry;
+    const entries = navigationApi.entries();
+    const currentEntry = navigationApi.currentEntry;
 
     if (!entries || entries.length === 0 || !currentEntry) {
       console.log("[Tab Flow] No navigation entries available");
