@@ -470,6 +470,7 @@
 .tab-flow-grid.list-view .tab-play-btn.visible,
 .tab-flow-grid.list-view .tab-mute-btn.muted,
 .tab-flow-grid.list-view .tab-mute-btn.visible,
+.tab-flow-grid.list-view .tab-card.is-playing .tab-play-btn,
 .tab-flow-grid.list-view .tab-card.has-media .tab-play-btn,
 .tab-flow-grid.list-view .tab-card.has-media .tab-mute-btn,
 .tab-flow-grid.list-view .tab-card.is-audible .tab-play-btn,
@@ -509,6 +510,8 @@
 .tab-flow-grid.recent-mode .tab-card:hover .tab-mute-btn,
 .tab-flow-grid.search-mode .tab-card:hover .tab-play-btn,
 .tab-flow-grid.search-mode .tab-card:hover .tab-mute-btn,
+.tab-flow-grid.recent-mode .tab-card.is-playing .tab-play-btn,
+.tab-flow-grid.search-mode .tab-card.is-playing .tab-play-btn,
 .tab-flow-grid.recent-mode .tab-card.has-media .tab-play-btn,
 .tab-flow-grid.recent-mode .tab-card.has-media .tab-mute-btn,
 .tab-flow-grid.search-mode .tab-card.has-media .tab-play-btn,
@@ -828,6 +831,21 @@
   width: 100% !important;
 }
 
+.group-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: var(--group-pill-bg, rgba(255, 255, 255, 0.12));
+  color: var(--group-pill-color, var(--text-primary));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--group-pill-color, white) 45%, transparent);
+}
+
 .tab-favicon {
   width: 16px;
   height: 16px;
@@ -950,6 +968,7 @@
 
 /* Persistent visibility for tabs with media */
 .tab-card.has-media .tab-play-btn,
+.tab-card.is-playing .tab-play-btn,
 .tab-card.is-audible .tab-play-btn {
   opacity: 0.85;
 }

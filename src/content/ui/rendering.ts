@@ -10,6 +10,10 @@ const log = (...args: unknown[]) => {
 };
 
 const VIRTUAL_RENDER_THRESHOLD = 50;
+const VIRTUAL_ROW_HEIGHT = 58;
+let virtualScrollGrid: HTMLElement | null = null;
+let virtualScrollFrame = 0;
+let lastVirtualTabsRef: Tab[] | null = null;
 
 function isListLayout(): boolean {
   const grid = state.domCache.grid;
@@ -121,6 +125,8 @@ export function renderTabsStandard(tabs: Tab[]) {
   if (!grid) return;
 
   // Clear grid and reset virtual list mode
+  detachVirtualScroll(grid);
+  lastVirtualTabsRef = null;
   grid.innerHTML = "";
   grid.classList.remove("virtual-list");
   grid.style.minHeight = "";
@@ -143,11 +149,6 @@ export function renderTabsStandard(tabs: Tab[]) {
 
   tabs.forEach((tab: Tab, index: number) => {
     const tabCard = createTabCard(tab, index);
-    if (tab.isGroupHeader) {
-      tabCard.dataset.isHeader = "true";
-      // Ensure headers are not selectable in the same way, or handled differently
-      // But for grid usage, they occupy a slot.
-    }
     tabCard.dataset.tabIndex = String(index);
     fragment.appendChild(tabCard);
   });
@@ -171,15 +172,17 @@ export function renderTabsVirtual(tabs: Tab[]) {
   const container = state.domCache.container;
   if (!grid) return;
 
-  // Clear grid and set virtual list mode
-  grid.innerHTML = "";
   grid.classList.add("virtual-list");
+  attachVirtualScroll(grid);
 
   // ARIA accessibility: set listbox role for screen readers
   grid.setAttribute("role", "listbox");
   grid.setAttribute("aria-label", "Open tabs");
 
   if (tabs.length === 0) {
+    lastVirtualTabsRef = null;
+    grid.innerHTML = "";
+    grid.style.minHeight = "";
     const emptyMsg = document.createElement("div");
     emptyMsg.className = "tab-flow-empty";
     emptyMsg.textContent = "No tabs found";
@@ -188,22 +191,41 @@ export function renderTabsVirtual(tabs: Tab[]) {
     return;
   }
 
-  // Calculate visible range
-  const itemHeight = 68; // 60px height + 8px margin
-  const visibleCount = state.virtualScroll.visibleCount;
+  const itemHeight = getVirtualItemHeight();
+  const viewportHeight = Math.max(
+    grid.clientHeight,
+    itemHeight * state.virtualScroll.visibleCount,
+  );
   const bufferCount = state.virtualScroll.bufferCount;
-  const startIndex = Math.max(0, state.selectedIndex - bufferCount);
+  const startIndex = Math.max(
+    0,
+    Math.floor(grid.scrollTop / itemHeight) - bufferCount,
+  );
   const endIndex = Math.min(
     tabs.length,
-    state.selectedIndex + visibleCount + bufferCount
+    Math.ceil((grid.scrollTop + viewportHeight) / itemHeight) + bufferCount,
   );
+
+  const didRangeChange =
+    startIndex !== state.virtualScroll.startIndex ||
+    endIndex !== state.virtualScroll.endIndex ||
+    lastVirtualTabsRef !== tabs;
 
   state.virtualScroll.startIndex = startIndex;
   state.virtualScroll.endIndex = endIndex;
+  lastVirtualTabsRef = tabs;
 
   // Create placeholder for scrolling
-  const totalHeight = tabs.length * itemHeight;
-  grid.style.minHeight = `${totalHeight}px`;
+  grid.style.minHeight = `${tabs.length * itemHeight}px`;
+
+  if (!didRangeChange) {
+    setupIntersectionObserver();
+    enforceSingleSelection(false);
+    return;
+  }
+
+  // Clear grid only after we know the render window changed.
+  grid.innerHTML = "";
 
   // Render only visible tabs
   const fragment = document.createDocumentFragment();
@@ -292,7 +314,7 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
       groupTitle = group.title || "Group";
       tabCard.dataset.groupId = String(group.id);
       tabCard.style.borderLeft = `6px solid ${groupColor}`;
-      tabCard.style.background = `linear-gradient(to right, ${groupColor}15, rgba(255,255,255,0.02))`;
+      tabCard.style.background = `linear-gradient(to right, ${withAlpha(groupColor, "1A")}, rgba(255,255,255,0.02))`;
     }
   }
 
@@ -354,18 +376,21 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
     const pill = document.createElement("span");
     pill.className = "group-pill";
     pill.textContent = groupTitle;
-    pill.style.cssText = `background-color:${groupColor};opacity:0.4;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:40px;margin-left:8px;white-space:nowrap;`;
+    pill.style.setProperty("--group-pill-color", groupColor);
+    pill.style.setProperty("--group-pill-bg", withAlpha(groupColor, "26"));
     header.appendChild(pill);
   }
 
   // Media controls - create buttons dynamically with DOM API (no innerHTML for security)
   if (!tab.sessionId && !tab.isWebSearch) {
-    const hasMediaElements = tab.hasMedia || false;
-    const isAudible = tab.audible || false;
-    const isMuted = tab.mutedInfo?.muted || false;
+    const isPlaying = getEffectivePlaybackState(tab);
+    const isAudible = Boolean(tab.audible);
+    const isMuted = Boolean(tab.mutedInfo?.muted);
+    const hasMediaElements = Boolean(tab.hasMedia || isPlaying || isMuted);
     const showMediaControls = hasMediaElements || isAudible || isMuted;
 
     if (hasMediaElements) classList.add("has-media");
+    if (isPlaying) classList.add("is-playing");
     if (isAudible) classList.add("is-audible");
     if (isMuted) classList.add("is-muted");
 
@@ -376,12 +401,12 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
       const playBtn = createMediaButton(
         "tab-play-btn visible",
         "play-pause",
-        isAudible ? SVG_PAUSE_TEMPLATE : SVG_PLAY_TEMPLATE,
-        isAudible ? "Pause tab" : "Play tab",
-        Boolean(isAudible)
+        isPlaying ? SVG_PAUSE_TEMPLATE : SVG_PLAY_TEMPLATE,
+        isPlaying ? "Pause tab" : "Play tab",
+        isPlaying
       );
       playBtn.dataset.tabId = String(tab.id);
-      if (isAudible) playBtn.classList.add("playing");
+      if (isPlaying) playBtn.classList.add("playing");
       mediaControls.appendChild(playBtn);
 
       // Create mute button with cloned SVG (no innerHTML)
@@ -439,13 +464,6 @@ export function createFaviconTile(tab: Tab): HTMLElement {
   return faviconTile;
 }
 
-export function applyGroupViewTransformation(tabs: Tab[]): Tab[] {
-  // We no longer cluster tabs by group, as the user wants the MRU order from the background
-  // script to be preserved ("listed as per recent opened").
-  // Group colors are still rendered on the individual tab cards.
-  return tabs;
-}
-
 export function enforceSingleSelection(scrollIntoView: boolean) {
   try {
     const grid = state.domCache.grid;
@@ -487,15 +505,17 @@ export function enforceSingleSelection(scrollIntoView: boolean) {
 
 export function updateSelection() {
   try {
-    if (!state.domCache.grid) return;
-    // Re-render window if virtual and out of range
+    const grid = state.domCache.grid;
+    if (!grid) return;
+
     const isVirtual = shouldUseVirtualRendering(state.filteredTabs.length);
     if (isVirtual) {
-      const { startIndex, endIndex } = state.virtualScroll;
-      if (state.selectedIndex < startIndex || state.selectedIndex >= endIndex) {
-        renderTabsVirtual(state.filteredTabs);
-      }
+      scrollVirtualSelectionIntoView(grid);
+      renderTabsVirtual(state.filteredTabs);
+      enforceSingleSelection(false);
+      return;
     }
+
     enforceSingleSelection(true);
   } catch (error) {
     console.error("[Tab Flow] Error in updateSelection:", error);
@@ -547,7 +567,10 @@ export function renderHistoryView(historyData: {
   const panelContainer = state.domCache.container;
   if (!grid) return;
 
+  detachVirtualScroll(grid);
+  lastVirtualTabsRef = null;
   grid.innerHTML = "";
+  grid.style.minHeight = "";
   grid.className = "tab-flow-grid search-mode"; // Reuse search-mode for column layout
 
   const container = document.createElement("div");
@@ -755,4 +778,83 @@ function getGroupColor(colorName: string) {
     orange: "#fcad70",
   };
   return colors[colorName] || colorName;
+}
+
+function withAlpha(color: string, alphaHex: string): string {
+  return /^#[0-9a-f]{6}$/i.test(color) ? `${color}${alphaHex}` : color;
+}
+
+function getEffectivePlaybackState(tab: Pick<Tab, "isPlaying" | "audible">): boolean {
+  return Boolean(tab.isPlaying ?? tab.audible);
+}
+
+function getVirtualItemHeight(): number {
+  return VIRTUAL_ROW_HEIGHT;
+}
+
+function handleVirtualScroll(): void {
+  if (virtualScrollFrame !== 0) return;
+
+  virtualScrollFrame = requestAnimationFrame(() => {
+    virtualScrollFrame = 0;
+    if (!shouldUseVirtualRendering(state.filteredTabs.length)) return;
+    const grid = state.domCache.grid;
+    if (!grid || state.filteredTabs.length === 0) return;
+
+    const itemHeight = getVirtualItemHeight();
+    const firstVisibleIndex = Math.max(0, Math.floor(grid.scrollTop / itemHeight));
+    const lastVisibleIndex = Math.max(
+      firstVisibleIndex,
+      Math.min(
+        state.filteredTabs.length - 1,
+        Math.ceil((grid.scrollTop + grid.clientHeight) / itemHeight) - 1,
+      ),
+    );
+
+    if (
+      state.selectedIndex < firstVisibleIndex ||
+      state.selectedIndex > lastVisibleIndex
+    ) {
+      state.selectedIndex = firstVisibleIndex;
+    }
+
+    renderTabsVirtual(state.filteredTabs);
+  });
+}
+
+function attachVirtualScroll(grid: HTMLElement): void {
+  if (virtualScrollGrid === grid) return;
+
+  detachVirtualScroll();
+  virtualScrollGrid = grid;
+  grid.addEventListener("scroll", handleVirtualScroll, { passive: true });
+}
+
+function detachVirtualScroll(grid?: HTMLElement): void {
+  const target = grid || virtualScrollGrid;
+  if (!target) return;
+
+  target.removeEventListener("scroll", handleVirtualScroll);
+  if (!grid || virtualScrollGrid === grid) {
+    virtualScrollGrid = null;
+  }
+
+  if (virtualScrollFrame !== 0) {
+    cancelAnimationFrame(virtualScrollFrame);
+    virtualScrollFrame = 0;
+  }
+}
+
+function scrollVirtualSelectionIntoView(grid: HTMLElement): void {
+  const itemHeight = getVirtualItemHeight();
+  const itemTop = state.selectedIndex * itemHeight;
+  const itemBottom = itemTop + itemHeight;
+  const viewportTop = grid.scrollTop;
+  const viewportBottom = viewportTop + grid.clientHeight;
+
+  if (itemTop < viewportTop) {
+    grid.scrollTop = itemTop;
+  } else if (itemBottom > viewportBottom) {
+    grid.scrollTop = Math.max(0, itemBottom - grid.clientHeight);
+  }
 }

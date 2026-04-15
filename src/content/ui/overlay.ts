@@ -15,7 +15,6 @@ import {
 import {
   renderTabsStandard,
   renderTabsVirtual,
-  applyGroupViewTransformation,
   shouldUseVirtualRendering,
 } from "./rendering";
 import * as focus from "../input/focus";
@@ -583,8 +582,8 @@ export function showTabFlow(
 
   state.activeTabs = tabs;
   state.currentTabs = tabs;
-  state.groups = groups; // MUST be set before applyGroupViewTransformation
-  state.filteredTabs = applyGroupViewTransformation(tabs);
+  state.groups = groups;
+  state.filteredTabs = tabs;
   setViewMode("active");
 
   // Clear any leftover mode styling from prior session

@@ -4,11 +4,16 @@ import * as focus from "./input/focus";
 import {
   renderTabsStandard,
   renderTabsVirtual,
-  applyGroupViewTransformation,
   shouldUseVirtualRendering,
 } from "./ui/rendering";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const PLAY_ICON_PATH = "M8 5v14l11-7z";
+const PAUSE_ICON_PATH = "M6 19h4V5H6v14zm8-14v14h4V5h-4z";
+const MUTE_ICON_PATH =
+  "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z";
+const UNMUTE_ICON_PATH =
+  "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z";
 
 function createIcon(pathD: string): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -32,6 +37,80 @@ function updateToggleButton(
   btnElement.setAttribute("aria-pressed", String(pressed));
   btnElement.setAttribute("title", title);
   btnElement.replaceChildren(createIcon(iconPath));
+}
+
+function getEffectivePlaybackState(tab: {
+  isPlaying?: boolean;
+  audible?: boolean;
+}): boolean {
+  return Boolean(tab.isPlaying ?? tab.audible);
+}
+
+function updateTrackedTabState(
+  tabId: number,
+  updater: (tab: (typeof state.currentTabs)[number]) => void
+) {
+  const seen = new Set<object>();
+
+  [state.currentTabs, state.filteredTabs, state.activeTabs].forEach((tabs) => {
+    tabs.forEach((tab) => {
+      if (!tab || tab.id !== tabId || seen.has(tab)) {
+        return;
+      }
+
+      seen.add(tab);
+      updater(tab);
+    });
+  });
+}
+
+function syncTabCardMediaState(tabId: number) {
+  const tab =
+    state.currentTabs.find((candidate) => candidate.id === tabId) ||
+    state.filteredTabs.find((candidate) => candidate.id === tabId) ||
+    state.activeTabs.find((candidate) => candidate.id === tabId);
+  const grid = state.domCache.grid;
+
+  if (!tab || !grid) {
+    return;
+  }
+
+  const card = grid.querySelector(
+    `.tab-card[data-tab-id="${tabId}"]`,
+  ) as HTMLElement | null;
+  if (!card) {
+    return;
+  }
+
+  const isPlaying = getEffectivePlaybackState(tab);
+  const isMuted = Boolean(tab.mutedInfo?.muted);
+  const isAudible = Boolean(tab.audible);
+  const hasMedia = Boolean(tab.hasMedia || isPlaying || isMuted);
+
+  card.classList.toggle("has-media", hasMedia);
+  card.classList.toggle("is-playing", isPlaying);
+  card.classList.toggle("is-audible", isAudible);
+  card.classList.toggle("is-muted", isMuted);
+
+  const playBtn = card.querySelector(".tab-play-btn") as HTMLElement | null;
+  if (playBtn) {
+    playBtn.classList.toggle("playing", isPlaying);
+    updateToggleButton(playBtn, {
+      title: isPlaying ? "Pause tab" : "Play tab",
+      pressed: isPlaying,
+      iconPath: isPlaying ? PAUSE_ICON_PATH : PLAY_ICON_PATH,
+    });
+  }
+
+  const muteBtn = card.querySelector(".tab-mute-btn") as HTMLElement | null;
+  if (muteBtn) {
+    muteBtn.classList.toggle("muted", isMuted);
+    updateToggleButton(muteBtn, {
+      title: isMuted ? "Unmute tab" : "Mute tab",
+      pressed: isMuted,
+      iconPath: isMuted ? MUTE_ICON_PATH : UNMUTE_ICON_PATH,
+    });
+  }
 }
 
 function createKbd(text: string): HTMLElement {
@@ -284,30 +363,20 @@ export function toggleMute(tabId: number, btnElement: HTMLElement) {
 
       if (response && response.success) {
         const isMuted = response.muted;
+        btnElement.classList.toggle("muted", Boolean(isMuted));
 
-        if (isMuted) {
-          btnElement.classList.add("muted");
-          updateToggleButton(btnElement, {
-            title: "Unmute tab",
-            pressed: true,
-            iconPath:
-              "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z",
-          });
-        } else {
-          btnElement.classList.remove("muted");
-          updateToggleButton(btnElement, {
-            title: "Mute tab",
-            pressed: false,
-            iconPath:
-              "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z",
-          });
-        }
+        updateTrackedTabState(tabId, (tab) => {
+          tab.mutedInfo = {
+            ...(tab.mutedInfo || {}),
+            muted: Boolean(isMuted),
+          };
+          tab.hasMedia = Boolean(tab.hasMedia || isMuted);
 
-        const tab = state.currentTabs.find((t) => t.id === tabId);
-        if (tab) {
-          if (!tab.mutedInfo) tab.mutedInfo = { muted: false };
-          tab.mutedInfo.muted = isMuted;
-        }
+          if (typeof response.audible === "boolean") {
+            tab.audible = response.audible;
+          }
+        });
+        syncTabCardMediaState(tabId);
       }
     });
   } catch (error) {
@@ -330,31 +399,21 @@ export function togglePlayPause(tabId: number, btnElement: HTMLElement) {
           return;
         }
 
-        if (response && response.success) {
+        if (response && typeof response.playing === "boolean") {
           const isPlaying = response.playing;
 
-          if (isPlaying) {
-            btnElement.classList.add("playing");
-            updateToggleButton(btnElement, {
-              title: "Pause tab",
-              pressed: true,
-              iconPath: "M6 19h4V5H6v14zm8-14v14h4V5h-4z",
-            });
-          } else {
-            btnElement.classList.remove("playing");
-            updateToggleButton(btnElement, {
-              title: "Play tab",
-              pressed: false,
-              iconPath: "M8 5v14l11-7z",
-            });
-          }
-
-          const tab = state.currentTabs.find((t) => t.id === tabId);
-          if (tab) {
-            (tab as any).isPlaying = isPlaying;
-            // Also update audible status if we have it
-            tab.audible = isPlaying;
-          }
+          btnElement.classList.toggle("playing", Boolean(isPlaying));
+          updateTrackedTabState(tabId, (tab) => {
+            tab.hasMedia =
+              typeof response.hasMedia === "boolean"
+                ? response.hasMedia
+                : Boolean(tab.hasMedia || isPlaying);
+            tab.isPlaying = isPlaying;
+            if (!isPlaying) {
+              tab.audible = false;
+            }
+          });
+          syncTabCardMediaState(tabId);
         }
       }
     );
@@ -429,18 +488,13 @@ export function switchToActive() {
   if (state.viewMode === "active") return;
   setViewMode("active");
   state.currentTabs = state.activeTabs || [];
-  // IMPORTANT: For active view, we might want to re-apply grouping if it's the filtered view?
-  // Basically reset to full active list (which implies active recency sort).
-  // AND apply group transformation to show headers.
-
-  // We apply transformation here
-  const transformed = applyGroupViewTransformation(state.currentTabs);
-  state.filteredTabs = transformed;
+  state.filteredTabs = state.currentTabs;
 
   state.selectedIndex = 0;
   if (state.domCache.grid) {
     state.domCache.grid.classList.remove("recent-mode");
     state.domCache.grid.classList.remove("search-mode");
+    state.domCache.grid.scrollTop = 0;
   }
   if (shouldUseVirtualRendering(state.filteredTabs.length)) {
     renderTabsVirtual(state.filteredTabs);
@@ -494,7 +548,10 @@ export async function switchToRecent() {
   state.currentTabs = state.recentItems;
   state.filteredTabs = state.recentItems; // No grouping for recent items usually
   state.selectedIndex = 0;
-  if (state.domCache.grid) state.domCache.grid.classList.add("recent-mode");
+  if (state.domCache.grid) {
+    state.domCache.grid.classList.add("recent-mode");
+    state.domCache.grid.scrollTop = 0;
+  }
   renderTabsStandard(state.filteredTabs);
   if (state.domCache.searchBox) state.domCache.searchBox.focus();
 }

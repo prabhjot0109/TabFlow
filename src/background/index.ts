@@ -11,8 +11,13 @@ import { perfMetrics } from "./utils/performance";
 import * as mediaTracker from "./services/media-tracker";
 import * as tabTracker from "./services/tab-tracker";
 import * as screenshot from "./services/screenshot";
+import {
+  buildFlowPayload,
+  buildQuickSwitchPayload,
+} from "./services/tab-data";
 import { handleMessage, sendMessageWithRetry } from "./handlers/messages";
 import { getCenteredPopupBounds } from "../shared/panel";
+import type { Group, Tab } from "../shared/types";
 
 const DEBUG_LOGGING = false;
 const log = (...args: unknown[]) => {
@@ -39,8 +44,8 @@ let FlowPopupWindowId: number | null = null;
 // ============================================================================
 
 async function openFlowPopup(
-  tabsData: any[],
-  groupsData: any[],
+  tabsData: Tab[],
+  groupsData: Group[],
   activeTabId: number,
 ): Promise<void> {
   try {
@@ -115,7 +120,7 @@ async function openFlowPopup(
 let QuickSwitchPopupWindowId: number | null = null;
 
 async function openQuickSwitchPopup(
-  tabsData: any[],
+  tabsData: Tab[],
   activeTabId: number,
 ): Promise<void> {
   try {
@@ -388,6 +393,10 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
       tab: chrome.tabs.Tab,
     ) => {
       try {
+        if (changeInfo.status === "loading") {
+          mediaTracker.removeMediaTab(tabId);
+        }
+
         // Track audible state changes
         if (changeInfo.audible !== undefined && changeInfo.audible) {
           mediaTracker.addMediaTab(tabId);
@@ -479,77 +488,16 @@ async function handleShowTabFlow(): Promise<void> {
     }
 
     const currentWindow = await chrome.windows.getCurrent();
-    const tabs = await chrome.tabs.query({ windowId: currentWindow.id });
-
-    const tabsWithIds = tabs.filter(
-      (tab): tab is chrome.tabs.Tab & { id: number } =>
-        typeof tab.id === "number",
-    );
-
-    // Fetch tab groups
-    let groups: chrome.tabGroups.TabGroup[] = [];
-    if (chrome.tabGroups) {
-      try {
-        groups = await chrome.tabGroups.query({ windowId: currentWindow.id });
-      } catch (e) {
-        console.debug("[GROUPS] Failed to fetch groups:", e);
-      }
+    if (typeof currentWindow.id !== "number") {
+      console.warn("[INJECT] No current window ID found");
+      return;
     }
 
-    // Initialize open order for new tabs
-    const now = Date.now();
-    tabsWithIds.forEach((tab, index) => {
-      if (!tabTracker.getTabOpenTime(tab.id)) {
-        tabTracker.setTabOpenTime(tab.id, now - (tabs.length - index) * 1000);
-      }
-    });
-
-    // Sort by recent access order
-    const sortedTabs = tabTracker.sortTabsByRecent(tabsWithIds);
-
-    // Build tab data with cached screenshots
-    // Increased limit for better preview coverage with 100+ tabs
-    const RECENT_PREVIEW_LIMIT = 30;
-
-    const tabsData = sortedTabs.map((tab, index) => {
-      let screenshotData = null;
-      const isRecent = index < RECENT_PREVIEW_LIMIT;
-
-      if (screenshot.isTabCapturable(tab) && isRecent) {
-        const cached = screenshotCache.getIfFresh(
-          tab.id,
-          PERF_CONFIG.SCREENSHOT_CACHE_DURATION,
-        );
-        if (cached) {
-          screenshotData = cached;
-          perfMetrics.cacheHits++;
-        } else {
-          perfMetrics.cacheMisses++;
-        }
-      }
-
-      return {
-        id: tab.id,
-        title: tab.title || "Untitled",
-        url: tab.url,
-        favIconUrl: tab.favIconUrl,
-        screenshot: screenshotData ? screenshotData.data : null,
-        pinned: tab.pinned,
-        index: tab.index,
-        active: tab.active,
-        audible: tab.audible,
-        mutedInfo: tab.mutedInfo,
-        groupId: tab.groupId,
-        hasMedia: mediaTracker.hasMedia(tab.id) || tab.audible,
-      };
-    });
-
-    const groupsData = groups.map((g) => ({
-      id: g.id,
-      title: g.title,
-      color: g.color,
-      collapsed: g.collapsed,
-    }));
+    const { tabs: tabsData, groups: groupsData } = await buildFlowPayload(
+      currentWindow.id,
+      screenshotCache,
+      { recordCacheMetrics: true },
+    );
 
     // Get active tab
     const [activeTab] = await chrome.tabs.query({
@@ -680,30 +628,15 @@ async function handleQuickSwitch(): Promise<void> {
       });
     }
 
-    const tabs = await chrome.tabs.query({ windowId: currentWindow.id });
+    if (typeof currentWindow.id !== "number") {
+      console.warn("[QUICK SWITCH] No current window ID found");
+      return;
+    }
 
-    const tabsWithIds = tabs.filter(
-      (tab): tab is chrome.tabs.Tab & { id: number } =>
-        typeof tab.id === "number",
+    const { tabs: tabsData } = await buildQuickSwitchPayload(
+      currentWindow.id,
+      screenshotCache,
     );
-
-    // Sort by recent access order
-    const sortedTabs = tabTracker.sortTabsByRecent(tabsWithIds);
-
-    // Build minimal tab data (no screenshots needed for quick switch)
-    const tabsData = sortedTabs.map((tab) => ({
-      id: tab.id,
-      title: tab.title || "Untitled",
-      url: tab.url,
-      favIconUrl: tab.favIconUrl,
-      pinned: tab.pinned,
-      index: tab.index,
-      active: tab.active,
-      audible: tab.audible,
-      mutedInfo: tab.mutedInfo,
-      groupId: tab.groupId,
-      hasMedia: mediaTracker.hasMedia(tab.id) || tab.audible,
-    }));
 
     // For protected pages, open popup window fallback that runs the same
     // quick-switch overlay behavior as injected pages.

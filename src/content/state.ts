@@ -14,7 +14,6 @@ export interface State {
   viewMode: "active" | "recent";
   recentItems: Tab[];
   groups: Group[];
-  collapsedGroups: Set<number>; // Track collapsed group IDs
   host: HTMLElement | null;
   shadowRoot: ShadowRoot | null;
   styleElement: HTMLStyleElement | null;
@@ -70,7 +69,6 @@ export const state: State = {
   viewMode: "active",
   recentItems: [],
   groups: [],
-  collapsedGroups: new Set(),
   host: null,
   shadowRoot: null,
   styleElement: null,

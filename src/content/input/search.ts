@@ -123,6 +123,12 @@ function getTitleFromUrl(url: string): string {
   }
 }
 
+function resetGridScroll(): void {
+  if (state.domCache.grid) {
+    state.domCache.grid.scrollTop = 0;
+  }
+}
+
 // Polyfill for requestIdleCallback
 const requestIdle =
   typeof requestIdleCallback !== "undefined"
@@ -264,6 +270,7 @@ export function handleSearch(e: Event) {
       if (state.domCache.sectionTitle) {
         state.domCache.sectionTitle.textContent = "Web Search";
       }
+      resetGridScroll();
       renderTabsStandard(state.filteredTabs);
       return;
     }
@@ -297,6 +304,7 @@ export function handleSearch(e: Event) {
     if (!query) {
       state.filteredTabs = state.currentTabs;
       state.selectedIndex = 0;
+      resetGridScroll();
 
       if (shouldUseVirtualRendering(state.currentTabs.length)) {
         renderTabsVirtual(state.currentTabs);
@@ -329,6 +337,7 @@ export function handleSearch(e: Event) {
 
     state.filteredTabs = filtered;
     state.selectedIndex = 0;
+    resetGridScroll();
 
     if (shouldUseVirtualRendering(filtered.length)) {
       renderTabsVirtual(filtered);
@@ -340,6 +349,7 @@ export function handleSearch(e: Event) {
     // Fallback to showing all tabs
     state.filteredTabs = state.currentTabs;
     state.selectedIndex = 0;
+    resetGridScroll();
     renderTabsStandard(state.currentTabs);
   }
 }

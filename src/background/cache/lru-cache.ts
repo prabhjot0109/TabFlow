@@ -202,8 +202,9 @@ export class LRUCache {
 
   // Estimate size of base64 screenshot
   _estimateSize(data: string): number {
-    // Base64 string size in bytes
-    return Math.ceil(data.length * 0.75); // Base64 is ~33% larger than binary
+    // Data URLs live as JS strings in memory, so heap impact is closer to
+    // UTF-16 string storage than decoded binary size.
+    return data.length * 2;
   }
 
   // Get cache statistics

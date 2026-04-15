@@ -6,8 +6,11 @@
 import { PERF_CONFIG } from "../config";
 import { LRUCache } from "../cache/lru-cache";
 import * as mediaTracker from "../services/media-tracker";
-import * as tabTracker from "../services/tab-tracker";
 import * as screenshot from "../services/screenshot";
+import {
+  buildFlowPayload,
+  buildQuickSwitchPayload,
+} from "../services/tab-data";
 
 // Import content script via CRXJS special query to get output filename
 import contentScriptPath from "../../content/index.ts?script";
@@ -61,6 +64,13 @@ type MessageResponse = {
   success: boolean;
   error?: string;
   [key: string]: unknown;
+};
+
+type TogglePlaybackResponse = {
+  success: boolean;
+  hasMedia: boolean;
+  playing: boolean;
+  error?: string;
 };
 
 const MESSAGE_ACTIONS: ReadonlySet<MessageAction> = new Set([
@@ -129,7 +139,13 @@ export async function handleMessage(
 
       case "reportMediaPresence":
         if (sender.tab && sender.tab.id) {
-          mediaTracker.addMediaTab(sender.tab.id);
+          mediaTracker.reportMediaState(sender.tab.id, {
+            hasMedia: parsedRequest.hasMedia === true,
+            isPlaying:
+              typeof parsedRequest.isPlaying === "boolean"
+                ? parsedRequest.isPlaying
+                : undefined,
+          });
         }
         sendResponse({ success: true });
         break;
@@ -252,8 +268,14 @@ export async function handleMessage(
         try {
           const tab = await chrome.tabs.get(parsedRequest.tabId);
           const newMutedStatus = !(tab.mutedInfo?.muted ?? false);
-          await chrome.tabs.update(parsedRequest.tabId, { muted: newMutedStatus });
-          sendResponse({ success: true, muted: newMutedStatus });
+          const updatedTab = await chrome.tabs.update(parsedRequest.tabId, {
+            muted: newMutedStatus,
+          });
+          sendResponse({
+            success: true,
+            muted: updatedTab?.mutedInfo?.muted ?? newMutedStatus,
+            audible: Boolean(updatedTab?.audible),
+          });
         } catch (error: unknown) {
           console.error("[ERROR] Failed to toggle mute:", error);
           sendResponse({ success: false, error: getErrorMessage(error) });
@@ -266,44 +288,24 @@ export async function handleMessage(
           return;
         }
         try {
-          const tab = await chrome.tabs.get(parsedRequest.tabId);
-          if (screenshot.isTabCapturable(tab)) {
-            const results = await chrome.scripting.executeScript({
-              target: { tabId: parsedRequest.tabId },
-              func: () => {
-                const media = [
-                  ...document.querySelectorAll("video, audio"),
-                ] as HTMLMediaElement[];
-                if (media.length === 0)
-                  return { success: false, reason: "no_media" };
+          const response = await sendMessageWithRetryResponse<TogglePlaybackResponse>(
+            parsedRequest.tabId,
+            { action: "toggleTabMediaPlayback" },
+          );
 
-                const anyPlaying = media.some((m) => !m.paused && !m.ended);
-                if (anyPlaying) {
-                  for (const m of media) {
-                    m.pause();
-                  }
-                  return { success: true, playing: false };
-                }
-                for (const m of media) {
-                  m.play().catch(() => { });
-                }
-                return { success: true, playing: true };
-              },
-            });
-            if (results && results[0]) {
-              sendResponse({ success: true, ...results[0].result });
-            } else {
-              sendResponse({
-                success: false,
-                error: "Script execution failed",
-              });
-            }
-          } else {
+          if (!response) {
             sendResponse({
               success: false,
-              error: "Cannot script in this tab",
+              error: "Cannot control media on this tab",
             });
+            return;
           }
+
+          mediaTracker.reportMediaState(parsedRequest.tabId, {
+            hasMedia: response.hasMedia,
+            isPlaying: response.playing,
+          });
+          sendResponse(response);
         } catch (error: unknown) {
           console.error("[ERROR] Failed to toggle play/pause:", error);
           sendResponse({ success: false, error: getErrorMessage(error) });
@@ -423,67 +425,8 @@ export async function handleMessage(
             return;
           }
 
-          const tabs = await chrome.tabs.query({ windowId: targetWindowId });
-
-          const tabsWithIds = tabs.filter(
-            (tab): tab is chrome.tabs.Tab & { id: number } =>
-              typeof tab.id === "number"
-          );
-
-          // Fetch tab groups
-          let groups: chrome.tabGroups.TabGroup[] = [];
-          if (chrome.tabGroups) {
-            try {
-              groups = await chrome.tabGroups.query({
-                windowId: targetWindowId,
-              });
-            } catch (e) {
-              console.debug("[GROUPS] Failed to fetch groups:", e);
-            }
-          }
-
-          // Sort by recent access order
-          const sortedTabs = tabTracker.sortTabsByRecent(tabsWithIds);
-
-          // Build tab data with cached screenshots
-          const RECENT_PREVIEW_LIMIT = 30;
-
-          const tabsData = sortedTabs.map((tab, index) => {
-            let screenshotData = null;
-            const isRecent = index < RECENT_PREVIEW_LIMIT;
-
-            if (screenshot.isTabCapturable(tab) && isRecent) {
-              const cached = screenshotCache.getIfFresh(
-                tab.id,
-                PERF_CONFIG.SCREENSHOT_CACHE_DURATION
-              );
-              if (cached) {
-                screenshotData = cached;
-              }
-            }
-
-            return {
-              id: tab.id,
-              title: tab.title || "Untitled",
-              url: tab.url,
-              favIconUrl: tab.favIconUrl,
-              screenshot: screenshotData ? screenshotData.data : null,
-              pinned: tab.pinned,
-              index: tab.index,
-              active: tab.active,
-              audible: tab.audible,
-              mutedInfo: tab.mutedInfo,
-              groupId: tab.groupId,
-              hasMedia: mediaTracker.hasMedia(tab.id) || tab.audible,
-            };
-          });
-
-          const groupsData = groups.map((g) => ({
-            id: g.id,
-            title: g.title,
-            color: g.color,
-            collapsed: g.collapsed,
-          }));
+          const { tabs: tabsData, groups: groupsData } =
+            await buildFlowPayload(targetWindowId, screenshotCache);
 
           sendResponse({
             success: true,
@@ -508,32 +451,10 @@ export async function handleMessage(
             return;
           }
 
-          const tabs = await chrome.tabs.query({
-            windowId: targetWindowId,
-          });
-
-          const tabsWithIds = tabs.filter(
-            (tab): tab is chrome.tabs.Tab & { id: number } =>
-              typeof tab.id === "number"
+          const { tabs: tabsData } = await buildQuickSwitchPayload(
+            targetWindowId,
+            screenshotCache,
           );
-
-          // Sort by recent access order
-          const sortedTabs = tabTracker.sortTabsByRecent(tabsWithIds);
-
-          // Build minimal tab data (no screenshots needed for quick switch)
-          const tabsData = sortedTabs.map((tab) => ({
-            id: tab.id,
-            title: tab.title || "Untitled",
-            url: tab.url,
-            favIconUrl: tab.favIconUrl,
-            pinned: tab.pinned,
-            index: tab.index,
-            active: tab.active,
-            audible: tab.audible,
-            mutedInfo: tab.mutedInfo,
-            groupId: tab.groupId,
-            hasMedia: mediaTracker.hasMedia(tab.id) || tab.audible,
-          }));
 
           sendResponse({
             success: true,
@@ -681,31 +602,44 @@ async function tryInjectContentScript(tabId: number): Promise<boolean> {
   }
 }
 
+async function sendMessageWithRetryResponse<T>(
+  tabId: number,
+  message: Record<string, unknown>,
+  retries = 1,
+): Promise<T | null> {
+  try {
+    return (await chrome.tabs.sendMessage(tabId, message)) as T;
+  } catch (err: unknown) {
+    if (retries > 0 && isMissingConnectionError(err)) {
+      try {
+        const injected = await tryInjectContentScript(tabId);
+        if (!injected) {
+          return null;
+        }
+
+        // executeScript resolves after the content script has loaded, so only
+        // keep a very small buffer here to avoid slowing quick-switch startup.
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        return (await chrome.tabs.sendMessage(tabId, message)) as T;
+      } catch {
+        return null;
+      }
+    }
+    throw err;
+  }
+}
+
 // Send message with automatic script injection
 export async function sendMessageWithRetry(
   tabId: number,
   message: Record<string, unknown>,
   retries = 1
 ): Promise<boolean> {
-  try {
-    await chrome.tabs.sendMessage(tabId, message);
-    return true;
-  } catch (err: unknown) {
-    if (retries > 0 && isMissingConnectionError(err)) {
-      try {
-        const injected = await tryInjectContentScript(tabId);
-        if (!injected) return false;
-
-        // executeScript resolves after the content script has loaded, so only
-        // keep a very small buffer here to avoid slowing quick-switch startup.
-        await new Promise((resolve) => setTimeout(resolve, 40));
-        await chrome.tabs.sendMessage(tabId, message);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    throw err;
-  }
+  const response = await sendMessageWithRetryResponse(
+    tabId,
+    message,
+    retries,
+  );
+  return response !== null;
 }
 

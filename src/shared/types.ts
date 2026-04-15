@@ -20,18 +20,10 @@ export interface Tab {
   isWebSearch?: boolean;
   searchQuery?: string;
   index?: number;
-  // Group Header Support
-  isGroupHeader?: boolean;
-  groupColor?: string;
-  groupTitle?: string;
-  // Temporary render props
-  _groupColor?: string;
-  _groupTitle?: string;
 }
 
 export interface Group {
   id: number;
   title?: string;
   color: string;
-  collapsed?: boolean;
 }

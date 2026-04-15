@@ -91,15 +91,20 @@ function getThumbnailTargetSize(width: number, height: number): {
 }
 
 async function blobToDataUrl(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return `data:${blob.type};base64,${btoa(binary)}`;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => {
+      reject(reader.error ?? new Error("Failed to read blob as data URL"));
+    };
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("Unexpected FileReader result"));
+    };
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function downscaleScreenshot(
