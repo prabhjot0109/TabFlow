@@ -1,6 +1,8 @@
 export const EXTENSION_PANEL = Object.freeze({
   width: 700,
   height: 500,
+  popupWidth: 800,
+  popupHeight: 560,
   minHeight: 220,
   viewportMargin: 20,
   compactGridItems: 3,
@@ -17,8 +19,8 @@ export function getCenteredPopupBounds(currentWindow: chrome.windows.Window): {
   left: number;
   top: number;
 } {
-  const width = EXTENSION_PANEL.width;
-  const height = EXTENSION_PANEL.height;
+  const width = EXTENSION_PANEL.popupWidth;
+  const height = EXTENSION_PANEL.popupHeight;
 
   const windowWidth = currentWindow.width ?? width;
   const windowHeight = currentWindow.height ?? height;
