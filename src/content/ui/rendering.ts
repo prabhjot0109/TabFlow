@@ -10,7 +10,11 @@ const log = (...args: unknown[]) => {
 };
 
 const VIRTUAL_RENDER_THRESHOLD = 50;
-const VIRTUAL_ROW_HEIGHT = 58;
+const VIRTUAL_ROW_HEIGHT = 48;
+const VIRTUAL_ROW_GAP = 10;
+const VIRTUAL_LIST_PADDING_TOP = 8;
+const VIRTUAL_LIST_PADDING_BOTTOM = 12;
+const VIRTUAL_SPACER_CLASS = "virtual-list-spacer";
 let virtualScrollGrid: HTMLElement | null = null;
 let virtualScrollFrame = 0;
 let lastVirtualTabsRef: Tab[] | null = null;
@@ -192,18 +196,20 @@ export function renderTabsVirtual(tabs: Tab[]) {
   }
 
   const itemHeight = getVirtualItemHeight();
+  const itemStride = getVirtualItemStride();
+  const scrollTop = Math.max(0, grid.scrollTop - VIRTUAL_LIST_PADDING_TOP);
   const viewportHeight = Math.max(
     grid.clientHeight,
-    itemHeight * state.virtualScroll.visibleCount,
+    itemStride * state.virtualScroll.visibleCount,
   );
   const bufferCount = state.virtualScroll.bufferCount;
   const startIndex = Math.max(
     0,
-    Math.floor(grid.scrollTop / itemHeight) - bufferCount,
+    Math.floor(scrollTop / itemStride) - bufferCount,
   );
   const endIndex = Math.min(
     tabs.length,
-    Math.ceil((grid.scrollTop + viewportHeight) / itemHeight) + bufferCount,
+    Math.ceil((scrollTop + viewportHeight) / itemStride) + bufferCount,
   );
 
   const didRangeChange =
@@ -216,7 +222,9 @@ export function renderTabsVirtual(tabs: Tab[]) {
   lastVirtualTabsRef = tabs;
 
   // Create placeholder for scrolling
-  grid.style.minHeight = `${tabs.length * itemHeight}px`;
+  const totalHeight = getVirtualListHeight(tabs.length);
+  grid.style.minHeight = "";
+  syncVirtualSpacer(grid, totalHeight);
 
   if (!didRangeChange) {
     setupIntersectionObserver();
@@ -226,6 +234,7 @@ export function renderTabsVirtual(tabs: Tab[]) {
 
   // Clear grid only after we know the render window changed.
   grid.innerHTML = "";
+  syncVirtualSpacer(grid, totalHeight);
 
   // Render only visible tabs
   const fragment = document.createDocumentFragment();
@@ -236,9 +245,7 @@ export function renderTabsVirtual(tabs: Tab[]) {
 
     // Position absolutely for virtual scrolling
     tabCard.style.position = "absolute";
-    tabCard.style.top = `${i * itemHeight}px`;
-    tabCard.style.left = "0";
-    tabCard.style.right = "0";
+    tabCard.style.top = `${VIRTUAL_LIST_PADDING_TOP + i * itemStride}px`;
 
     fragment.appendChild(tabCard);
   }
@@ -792,6 +799,33 @@ function getVirtualItemHeight(): number {
   return VIRTUAL_ROW_HEIGHT;
 }
 
+function getVirtualItemStride(): number {
+  return VIRTUAL_ROW_HEIGHT + VIRTUAL_ROW_GAP;
+}
+
+function getVirtualListHeight(itemCount: number): number {
+  if (itemCount <= 0) return 0;
+
+  return (
+    VIRTUAL_LIST_PADDING_TOP +
+    itemCount * VIRTUAL_ROW_HEIGHT +
+    (itemCount - 1) * VIRTUAL_ROW_GAP +
+    VIRTUAL_LIST_PADDING_BOTTOM
+  );
+}
+
+function syncVirtualSpacer(grid: HTMLElement, height: number): void {
+  let spacer = grid.querySelector(`:scope > .${VIRTUAL_SPACER_CLASS}`) as HTMLElement | null;
+
+  if (!spacer) {
+    spacer = document.createElement("div");
+    spacer.className = VIRTUAL_SPACER_CLASS;
+    grid.appendChild(spacer);
+  }
+
+  spacer.style.height = `${height}px`;
+}
+
 function handleVirtualScroll(): void {
   if (virtualScrollFrame !== 0) return;
 
@@ -801,13 +835,14 @@ function handleVirtualScroll(): void {
     const grid = state.domCache.grid;
     if (!grid || state.filteredTabs.length === 0) return;
 
-    const itemHeight = getVirtualItemHeight();
-    const firstVisibleIndex = Math.max(0, Math.floor(grid.scrollTop / itemHeight));
+    const itemStride = getVirtualItemStride();
+    const scrollTop = Math.max(0, grid.scrollTop - VIRTUAL_LIST_PADDING_TOP);
+    const firstVisibleIndex = Math.max(0, Math.floor(scrollTop / itemStride));
     const lastVisibleIndex = Math.max(
       firstVisibleIndex,
       Math.min(
         state.filteredTabs.length - 1,
-        Math.ceil((grid.scrollTop + grid.clientHeight) / itemHeight) - 1,
+        Math.ceil((scrollTop + grid.clientHeight) / itemStride) - 1,
       ),
     );
 
@@ -847,7 +882,8 @@ function detachVirtualScroll(grid?: HTMLElement): void {
 
 function scrollVirtualSelectionIntoView(grid: HTMLElement): void {
   const itemHeight = getVirtualItemHeight();
-  const itemTop = state.selectedIndex * itemHeight;
+  const itemStride = getVirtualItemStride();
+  const itemTop = VIRTUAL_LIST_PADDING_TOP + state.selectedIndex * itemStride;
   const itemBottom = itemTop + itemHeight;
   const viewportTop = grid.scrollTop;
   const viewportBottom = viewportTop + grid.clientHeight;

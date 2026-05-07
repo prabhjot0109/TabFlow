@@ -1596,12 +1596,21 @@ kbd:hover {
 .tab-flow-grid.virtual-list {
   display: block;
   position: relative;
+  min-height: 0;
+  padding: 0;
+}
+
+.tab-flow-grid.virtual-list .virtual-list-spacer {
+  width: 1px;
+  pointer-events: none;
 }
 
 .tab-flow-grid.virtual-list .tab-card {
   position: absolute;
   left: 12px;
   right: 12px;
+  width: auto;
+  height: 48px;
   contain: layout style paint;
   will-change: transform;
 }
