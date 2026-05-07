@@ -5,16 +5,16 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_index.ts-loader-B2ly2Ahk.js": {
-    "file": "assets/index.ts-loader-B2ly2Ahk.js",
-    "src": "_index.ts-loader-B2ly2Ahk.js"
+  "_index.ts-loader-2UI9TihO.js": {
+    "file": "assets/index.ts-loader-2UI9TihO.js",
+    "src": "_index.ts-loader-2UI9TihO.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
     "name": "modulepreload-polyfill"
   },
-  "_overlay-BfjIVxwa.js": {
-    "file": "assets/overlay-BfjIVxwa.js",
+  "_overlay-DZtA3thj.js": {
+    "file": "assets/overlay-DZtA3thj.js",
     "name": "overlay",
     "imports": [
       "_panel-CLYIgvAq.js"
@@ -24,15 +24,15 @@
     "file": "assets/panel-CLYIgvAq.js",
     "name": "panel"
   },
-  "_protected-popup-D_izRBi-.js": {
-    "file": "assets/protected-popup-D_izRBi-.js",
+  "_protected-popup-BErGftep.js": {
+    "file": "assets/protected-popup-BErGftep.js",
     "name": "protected-popup",
     "imports": [
-      "_overlay-BfjIVxwa.js"
+      "_overlay-DZtA3thj.js"
     ]
   },
   "src/background/index.ts": {
-    "file": "assets/index.ts-D2MNhNDh.js",
+    "file": "assets/index.ts-BetLhL5g.js",
     "name": "index.ts",
     "src": "src/background/index.ts",
     "isEntry": true,
@@ -41,24 +41,24 @@
     ]
   },
   "src/content/index.ts": {
-    "file": "assets/index.ts-BhV7evOc.js",
+    "file": "assets/index.ts-BMPN_Ed9.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
     "isEntry": true,
     "imports": [
-      "_overlay-BfjIVxwa.js",
+      "_overlay-DZtA3thj.js",
       "_panel-CLYIgvAq.js"
     ]
   },
   "src/flow/index.html": {
-    "file": "assets/Flow-DPvg3QST.js",
+    "file": "assets/Flow-RuGYOn84.js",
     "name": "Flow",
     "src": "src/flow/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-BfjIVxwa.js",
-      "_protected-popup-D_izRBi-.js",
+      "_overlay-DZtA3thj.js",
+      "_protected-popup-BErGftep.js",
       "_panel-CLYIgvAq.js"
     ]
   },
@@ -87,14 +87,14 @@
     ]
   },
   "src/quick-switch/index.html": {
-    "file": "assets/QuickSwitch-C2QvBoUB.js",
+    "file": "assets/QuickSwitch-SvogBpsT.js",
     "name": "QuickSwitch",
     "src": "src/quick-switch/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-BfjIVxwa.js",
-      "_protected-popup-D_izRBi-.js",
+      "_overlay-DZtA3thj.js",
+      "_protected-popup-BErGftep.js",
       "_panel-CLYIgvAq.js"
     ]
   }

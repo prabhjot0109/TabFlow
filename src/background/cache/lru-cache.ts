@@ -2,12 +2,21 @@
 // LRU CACHE IMPLEMENTATION (WITH PERSISTENCE)
 // ============================================================================
 
-import { SimpleIDB } from "./indexed-db";
+import { SimpleIDB } from "./indexed-db.ts";
 
 export interface CacheEntry {
   data: string; // base64
   size: number;
   timestamp: number;
+  lastAccessed?: number;
+}
+
+interface PersistentCacheStorage {
+  getAll(): Promise<unknown[]>;
+  getAllKeys(): Promise<IDBValidKey[]>;
+  set(key: IDBValidKey, value: unknown): Promise<void>;
+  delete(key: IDBValidKey): Promise<void>;
+  clear(): Promise<void>;
 }
 
 export class LRUCache {
@@ -15,19 +24,23 @@ export class LRUCache {
   private maxTabs: number;
   private maxBytes: number;
   private currentBytes: number;
-  private accessOrder: number[];
-  private storage: SimpleIDB;
+  private accessOrder: Map<number, true>;
+  private storage: PersistentCacheStorage;
   public ready: Promise<void>;
 
-  constructor(maxTabs = 30, maxBytes = 20 * 1024 * 1024) {
+  constructor(
+    maxTabs = 30,
+    maxBytes = 20 * 1024 * 1024,
+    storage: PersistentCacheStorage = new SimpleIDB("TabFlowDB", "screenshots"),
+  ) {
     this.cache = new Map(); // Map for O(1) access
     this.maxTabs = maxTabs;
     this.maxBytes = maxBytes;
     this.currentBytes = 0;
-    this.accessOrder = []; // Track access order for LRU
+    this.accessOrder = new Map(); // Oldest key first, newest key last
 
     // Persistence
-    this.storage = new SimpleIDB("TabFlowDB", "screenshots");
+    this.storage = storage;
     this.ready = this._restoreFromStorage();
   }
 
@@ -53,7 +66,8 @@ export class LRUCache {
 
       const values = await this.storage.getAll();
 
-      // Reconstruct cache
+      const restoredEntries: Array<[number, CacheEntry]> = [];
+
       keys.forEach((key, index) => {
         const raw = values[index];
         if (typeof key !== "number" || !raw || typeof raw !== "object") return;
@@ -64,23 +78,42 @@ export class LRUCache {
           typeof value.size === "number" &&
           typeof value.timestamp === "number"
         ) {
-          this.cache.set(key, value as CacheEntry);
-          this.currentBytes += value.size;
+          restoredEntries.push([
+            key,
+            {
+              data: value.data,
+              size: value.size,
+              timestamp: value.timestamp,
+              lastAccessed:
+                typeof value.lastAccessed === "number"
+                  ? value.lastAccessed
+                  : value.timestamp,
+            },
+          ]);
         }
       });
 
-      // Reconstruct access order based on timestamps (descending)
-      this.accessOrder = Array.from(this.cache.entries())
-        .sort((a, b) => b[1].timestamp - a[1].timestamp)
-        .map((entry) => entry[0]);
+      // Reconstruct oldest-to-newest order so eviction remains O(1).
+      restoredEntries.sort(
+        (a, b) =>
+          (a[1].lastAccessed ?? a[1].timestamp) -
+          (b[1].lastAccessed ?? b[1].timestamp),
+      );
 
-      // Enforce current limits immediately after restore so large persisted
-      // caches cannot exceed runtime memory/tab budgets.
-      while (
-        (this.cache.size > this.maxTabs || this.currentBytes > this.maxBytes) &&
-        this.cache.size > 0
-      ) {
-        this._evictLRU();
+      for (const [key, entry] of restoredEntries) {
+        this.cache.set(key, entry);
+        this.currentBytes += entry.size;
+        this._touch(key);
+
+        // Enforce current limits during restore so persisted caches cannot
+        // remain above runtime memory/tab budgets.
+        while (
+          (this.cache.size > this.maxTabs ||
+            this.currentBytes > this.maxBytes) &&
+          this.cache.size > 0
+        ) {
+          this._evictLRU();
+        }
       }
 
       console.log(
@@ -95,16 +128,9 @@ export class LRUCache {
   get(key: number): CacheEntry | null {
     if (!this.cache.has(key)) return null;
 
-    // Move to front of access order (most recent)
-    this.accessOrder = this.accessOrder.filter((k) => k !== key);
-    this.accessOrder.unshift(key);
-
-    // Update timestamp in background for persistence
     const entry = this.cache.get(key)!;
-    entry.timestamp = Date.now();
-    this.storage
-      .set(key, entry)
-      .catch((e) => console.warn("Failed to update timestamp", e));
+    entry.lastAccessed = Date.now();
+    this._touch(key);
 
     return entry;
   }
@@ -135,6 +161,7 @@ export class LRUCache {
     if (this.cache.has(key)) {
       const oldSize = this.cache.get(key)!.size;
       this.currentBytes -= oldSize;
+      this.accessOrder.delete(key);
     }
 
     // Evict if necessary
@@ -147,13 +174,11 @@ export class LRUCache {
     }
 
     // Add new entry
-    const entry = { data: value, size, timestamp: Date.now() };
+    const now = Date.now();
+    const entry = { data: value, size, timestamp: now, lastAccessed: now };
     this.cache.set(key, entry);
     this.currentBytes += size;
-
-    // Update access order
-    this.accessOrder = this.accessOrder.filter((k) => k !== key);
-    this.accessOrder.unshift(key);
+    this._touch(key);
 
     // Persist to storage
     this.storage
@@ -169,7 +194,7 @@ export class LRUCache {
     if (!entry) return false;
     this.currentBytes -= entry.size;
     this.cache.delete(key);
-    this.accessOrder = this.accessOrder.filter((k) => k !== key);
+    this.accessOrder.delete(key);
 
     // Remove from storage
     this.storage
@@ -181,10 +206,10 @@ export class LRUCache {
 
   // Evict least recently used entry
   private _evictLRU(): void {
-    if (this.accessOrder.length === 0) return;
-
-    const lruKey = this.accessOrder.pop(); // Remove from end (least recent)
+    const lruKey = this.accessOrder.keys().next().value as number | undefined;
     if (lruKey === undefined) return;
+
+    this.accessOrder.delete(lruKey);
     const entry = this.cache.get(lruKey);
 
     if (entry) {
@@ -205,6 +230,11 @@ export class LRUCache {
     // Data URLs live as JS strings in memory, so heap impact is closer to
     // UTF-16 string storage than decoded binary size.
     return data.length * 2;
+  }
+
+  private _touch(key: number): void {
+    this.accessOrder.delete(key);
+    this.accessOrder.set(key, true);
   }
 
   // Get cache statistics
@@ -229,7 +259,7 @@ export class LRUCache {
   // Clear all entries
   clear(): void {
     this.cache.clear();
-    this.accessOrder = [];
+    this.accessOrder.clear();
     this.currentBytes = 0;
     this.storage
       .clear()

@@ -17,6 +17,7 @@ import {
   renderTabsVirtual,
   shouldUseVirtualRendering,
 } from "./rendering";
+import { releaseTabPayloadState } from "../memory";
 import * as focus from "../input/focus";
 
 const DEBUG_LOGGING = false;
@@ -993,6 +994,14 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
   updateQuickSwitchSelection(true);
 }
 
+function clearQuickSwitchRenderedTabs() {
+  if (quickSwitchGrid) {
+    quickSwitchGrid.textContent = "";
+  }
+  quickSwitchCards = [];
+  quickSwitchLastSelectedIndex = -1;
+}
+
 function applyQuickSwitchSelection(index: number, selected: boolean) {
   const card = quickSwitchCards[index];
   if (!card) return;
@@ -1034,9 +1043,9 @@ export function closeQuickSwitch() {
   if (!state.isQuickSwitchVisible) return;
 
   state.isQuickSwitchVisible = false;
-  state.quickSwitchTabs = [];
   focus.unlockPageInteraction();
-  quickSwitchLastSelectedIndex = -1;
+  clearQuickSwitchRenderedTabs();
+  releaseTabPayloadState(state);
   quickSwitchReadyTime = 0;
 
   if (quickSwitchOverlay) {

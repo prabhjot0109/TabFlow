@@ -11,6 +11,7 @@ import { perfMetrics } from "../utils/performance";
 const captureQueue: { tabId: number; timestamp: number }[] = [];
 let lastCaptureTime = 0;
 let isProcessingQueue = false;
+const queuedCaptures = new Set<number>();
 const pendingCaptures = new Set<number>();
 
 // Current quality tier setting
@@ -59,14 +60,12 @@ export function queueCapture(
   }
 
   // Check if already in queue or pending
-  if (
-    captureQueue.some((item) => item.tabId === tabId) ||
-    pendingCaptures.has(tabId)
-  ) {
+  if (queuedCaptures.has(tabId) || pendingCaptures.has(tabId)) {
     return;
   }
 
   const queueItem = { tabId, timestamp: Date.now() };
+  queuedCaptures.add(tabId);
 
   if (priority) {
     captureQueue.unshift(queueItem);
@@ -74,7 +73,17 @@ export function queueCapture(
     captureQueue.push(queueItem);
   }
 
+  trimCaptureQueue();
   processQueue(screenshotCache);
+}
+
+function trimCaptureQueue(): void {
+  while (captureQueue.length > PERF_CONFIG.MAX_CAPTURE_QUEUE_LENGTH) {
+    const removed = captureQueue.pop();
+    if (removed) {
+      queuedCaptures.delete(removed.tabId);
+    }
+  }
 }
 
 function getThumbnailTargetSize(width: number, height: number): {
@@ -171,6 +180,9 @@ async function processQueue(screenshotCache: LRUCache): Promise<void> {
     }
 
     const item = captureQueue.shift();
+    if (item) {
+      queuedCaptures.delete(item.tabId);
+    }
     if (item && item.tabId) {
       pendingCaptures.add(item.tabId);
 
@@ -336,6 +348,13 @@ export function isTabCapturable(tab: chrome.tabs.Tab): boolean {
 
 export function removePendingCapture(tabId: number): void {
   pendingCaptures.delete(tabId);
+  if (!queuedCaptures.delete(tabId)) return;
+
+  for (let index = captureQueue.length - 1; index >= 0; index--) {
+    if (captureQueue[index]?.tabId === tabId) {
+      captureQueue.splice(index, 1);
+    }
+  }
 }
 
 

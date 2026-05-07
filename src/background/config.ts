@@ -19,6 +19,7 @@ export const PERF_CONFIG = {
   SCREENSHOT_CACHE_DURATION: 10 * 60 * 1000, // 10 minutes (increased for better cache utilization)
   MAX_CAPTURES_PER_SECOND: 2, // Chrome API limit
   THROTTLE_INTERVAL: 500, // Min time between captures (ms)
+  MAX_CAPTURE_QUEUE_LENGTH: 40, // Bound queued screenshot work for large tab sets
   PERFORMANCE_LOGGING: false, // Enable performance metrics
 
   // Quality tiers for memory optimization

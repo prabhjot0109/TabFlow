@@ -2,10 +2,12 @@ import { state } from "./state";
 import * as handlers from "./input/keyboard";
 import * as focus from "./input/focus";
 import {
+  cleanupTabRendering,
   renderTabsStandard,
   renderTabsVirtual,
   shouldUseVirtualRendering,
 } from "./ui/rendering";
+import { releaseTabPayloadState } from "./memory";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const PLAY_ICON_PATH = "M8 5v14l11-7z";
@@ -204,6 +206,9 @@ export function closeOverlay() {
       state.resizeObserver.disconnect();
       state.resizeObserver = null;
     }
+
+    cleanupTabRendering();
+    releaseTabPayloadState(state);
   } catch (error) {
     console.error("[Tab Flow] Error in closeOverlay:", error);
     // Force cleanup even on error
@@ -217,6 +222,8 @@ export function closeOverlay() {
     // Try to remove listeners anyway
     try {
       cleanupGlobalListeners();
+      cleanupTabRendering();
+      releaseTabPayloadState(state);
     } catch { }
   }
 }

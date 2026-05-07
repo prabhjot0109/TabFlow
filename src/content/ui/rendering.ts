@@ -565,6 +565,19 @@ export function setupIntersectionObserver() {
   });
 }
 
+export function cleanupTabRendering() {
+  const grid = state.domCache.grid;
+  detachVirtualScroll(grid ?? undefined);
+  lastVirtualTabsRef = null;
+
+  if (!grid) return;
+
+  grid.textContent = "";
+  grid.classList.remove("virtual-list", "search-mode", "recent-mode");
+  grid.style.minHeight = "";
+  grid.removeAttribute("aria-activedescendant");
+}
+
 // History Views
 export function renderHistoryView(historyData: {
   back: Array<{ url: string; title: string }>;
