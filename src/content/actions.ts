@@ -355,6 +355,33 @@ export function closeTab(tabId: number) {
   }
 }
 
+export function duplicateTab(tabId: number) {
+  try {
+    if (!tabId || typeof tabId !== "number") {
+      console.error("[Tab Flow] Invalid tab ID for duplication:", tabId);
+      return;
+    }
+
+    chrome.runtime.sendMessage(
+      { action: "duplicateTab", tabId },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "[Tab Flow] Error duplicating tab:",
+            chrome.runtime.lastError.message
+          );
+          return;
+        }
+        if (response?.success) {
+          closeOverlay();
+        }
+      }
+    );
+  } catch (error) {
+    console.error("[Tab Flow] Exception in duplicateTab:", error);
+  }
+}
+
 export function toggleMute(tabId: number, btnElement: HTMLElement) {
   try {
     if (!tabId) return;
@@ -462,6 +489,7 @@ export function setViewMode(mode: "active" | "recent") {
         { keys: ["Alt+W", "↑↓"], action: "Navigate" },
         { keys: ["Enter"], action: "Switch Tab" },
         { keys: ["Delete"], action: "Close" },
+        { keys: ["`"], action: "Duplicate" },
         { keys: ["."], action: "Recent Tabs" },
         { keys: [";"], action: "Tab History" },
         { keys: ["Esc"], action: "Exit" },

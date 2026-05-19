@@ -30,6 +30,7 @@ type MessageAction =
   | "restoreSession"
   | "switchToTab"
   | "closeTab"
+  | "duplicateTab"
   | "toggleMute"
   | "togglePlayPause"
   | "refreshTabList"
@@ -49,6 +50,7 @@ type IncomingMessage =
   | { action: "restoreSession"; sessionId?: string }
   | { action: "switchToTab"; tabId?: number }
   | { action: "closeTab"; tabId?: number }
+  | { action: "duplicateTab"; tabId?: number }
   | { action: "toggleMute"; tabId?: number }
   | { action: "togglePlayPause"; tabId?: number }
   | { action: "refreshTabList" }
@@ -81,6 +83,7 @@ const MESSAGE_ACTIONS: ReadonlySet<MessageAction> = new Set([
   "restoreSession",
   "switchToTab",
   "closeTab",
+  "duplicateTab",
   "toggleMute",
   "togglePlayPause",
   "refreshTabList",
@@ -256,6 +259,26 @@ export async function handleMessage(
           sendResponse({ success: true });
         } catch (error: unknown) {
           console.error("[ERROR] Failed to close tab:", error);
+          sendResponse({ success: false, error: getErrorMessage(error) });
+        }
+        break;
+
+      case "duplicateTab":
+        if (!parsedRequest.tabId || typeof parsedRequest.tabId !== "number") {
+          sendResponse({ success: false, error: "Invalid tab ID" });
+          return;
+        }
+        try {
+          const tab = await chrome.tabs.get(parsedRequest.tabId).catch(() => null);
+          if (!tab) {
+            console.warn("[WARNING] Tab no longer exists:", parsedRequest.tabId);
+            sendResponse({ success: false, error: "Tab no longer exists" });
+            return;
+          }
+          const duplicatedTab = await chrome.tabs.duplicate(parsedRequest.tabId);
+          sendResponse({ success: true, duplicatedTabId: duplicatedTab?.id });
+        } catch (error: unknown) {
+          console.error("[ERROR] Failed to duplicate tab:", error);
           sendResponse({ success: false, error: getErrorMessage(error) });
         }
         break;

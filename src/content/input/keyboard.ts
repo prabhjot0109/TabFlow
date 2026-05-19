@@ -6,6 +6,7 @@ import {
   togglePlayPause,
   restoreSession,
   closeTab,
+  duplicateTab,
   switchToActive,
   switchToRecent,
   createGroup,
@@ -339,6 +340,22 @@ export function handleKeyDown(e: KeyboardEvent) {
           }
         }
         break;
+
+      case "`":
+        // Duplicate selected tab (only in active tabs view)
+        if (
+          state.viewMode !== "recent" &&
+          state.filteredTabs.length > 0 &&
+          state.selectedIndex >= 0 &&
+          state.selectedIndex < state.filteredTabs.length
+        ) {
+          e.preventDefault();
+          const tab = state.filteredTabs[state.selectedIndex];
+          if (tab?.id) {
+            duplicateTab(tab.id);
+          }
+        }
+        break;
     }
   } catch (error) {
     console.error("[Tab Flow] Error in handleKeyDown:", error);
@@ -384,6 +401,24 @@ export function handleSearchKeydown(e: KeyboardEvent) {
         return;
       }
       state.lastKeyTime = now;
+    }
+
+    // '`' (backtick) duplicates the selected tab regardless of search box state
+    if (e.key === "`") {
+      if (state.viewMode !== "recent") {
+        e.preventDefault();
+        if (
+          state.filteredTabs.length > 0 &&
+          state.selectedIndex >= 0 &&
+          state.selectedIndex < state.filteredTabs.length
+        ) {
+          const tab = state.filteredTabs[state.selectedIndex];
+          if (tab?.id) {
+            duplicateTab(tab.id);
+          }
+        }
+        return;
+      }
     }
 
     // '.' toggles between Active and Recently Closed when input empty
