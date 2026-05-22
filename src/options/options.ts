@@ -28,6 +28,9 @@ const ELEMENTS = {
   saveBtn: document.getElementById("saveBtn") as HTMLButtonElement,
   resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
   status: document.getElementById("status") as HTMLElement,
+  configureShortcutsBtn: document.getElementById(
+    "configureShortcutsBtn"
+  ) as HTMLButtonElement,
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -140,11 +143,47 @@ async function handleReset() {
   }
 }
 
+async function displayShortcuts() {
+  if (typeof chrome !== "undefined" && chrome.commands) {
+    try {
+      const commands = await chrome.commands.getAll();
+      const listContainer = document.getElementById("shortcutsList");
+      if (listContainer && commands && commands.length > 0) {
+        listContainer.innerHTML = "";
+        for (const cmd of commands) {
+          if (!cmd.name) continue;
+
+          const item = document.createElement("div");
+          item.className = "shortcut-item";
+
+          const desc = document.createElement("span");
+          desc.className = "shortcut-desc";
+          desc.textContent = cmd.description || cmd.name;
+
+          const key = document.createElement("kbd");
+          key.className = "shortcut-key";
+          key.textContent = cmd.shortcut || "Not set";
+
+          item.appendChild(desc);
+          item.appendChild(key);
+          listContainer.appendChild(item);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to get commands:", error);
+    }
+  }
+}
+
 async function initialize() {
   const settings = await loadSettings();
   writeFormValues(settings);
   ELEMENTS.saveBtn.addEventListener("click", handleSave);
   ELEMENTS.resetBtn.addEventListener("click", handleReset);
+  ELEMENTS.configureShortcutsBtn.addEventListener("click", () => {
+    chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+  });
+  displayShortcuts().catch(console.error);
 }
 
 initialize().catch((error) => {

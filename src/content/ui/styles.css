@@ -374,6 +374,7 @@
 
 /* Grid - Active Tabs */
 .tab-flow-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
   gap: 10px;
@@ -1614,3 +1615,31 @@ kbd:hover {
   contain: layout style paint;
   will-change: transform;
 }
+
+/* FLIP Transition & Entry/Exit Animations */
+.tab-card.card-entering {
+  opacity: 0;
+  transform: scale(0.9) !important;
+}
+
+.tab-card.card-entering-active {
+  opacity: 1;
+  transform: scale(1) !important;
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.tab-card.card-exiting-start {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  transition: none !important;
+}
+
+.tab-card.card-exiting-active {
+  opacity: 0;
+  transform: scale(0.85) !important;
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+

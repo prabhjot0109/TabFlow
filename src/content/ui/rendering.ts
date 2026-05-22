@@ -85,6 +85,7 @@ function createSVGTemplate(pathD: string): SVGSVGElement {
   return svg;
 }
 
+
 // Pre-create SVG templates for cloning (faster than innerHTML)
 const SVG_PLAY_TEMPLATE = createSVGTemplate("M8 5v14l11-7z");
 const SVG_PAUSE_TEMPLATE = createSVGTemplate("M6 19h4V5H6v14zm8-14v14h4V5h-4z");
@@ -128,6 +129,9 @@ export function renderTabsStandard(tabs: Tab[]) {
   const container = state.domCache.container;
   if (!grid) return;
 
+  // Capture grid state before modification
+  const captured = captureGridState(grid);
+
   // Clear grid and reset virtual list mode
   detachVirtualScroll(grid);
   lastVirtualTabsRef = null;
@@ -145,6 +149,7 @@ export function renderTabsStandard(tabs: Tab[]) {
     emptyMsg.textContent = "No tabs found";
     grid.appendChild(emptyMsg);
     syncPanelDensity(container, grid, 0);
+    applyGridFLIP(grid, captured);
     return;
   }
 
@@ -162,6 +167,9 @@ export function renderTabsStandard(tabs: Tab[]) {
   syncPanelDensity(container, grid, tabs.length);
   // After rendering, ensure only one card is selected in DOM
   enforceSingleSelection(false);
+
+  // Apply FLIP transitions
+  applyGridFLIP(grid, captured);
 
   const duration = performance.now() - startTime;
   log(`[PERF] Rendered ${tabs.length} tabs in ${duration.toFixed(2)}ms`);
@@ -907,3 +915,180 @@ function scrollVirtualSelectionIntoView(grid: HTMLElement): void {
     grid.scrollTop = Math.max(0, itemBottom - grid.clientHeight);
   }
 }
+
+// ============================================================================
+// FLIP LAYOUT TRANSITION HELPERS
+// ============================================================================
+interface AnimatedHTMLElement extends HTMLElement {
+  _onTransitionEnd?: (e: TransitionEvent) => void;
+}
+
+function getCardKey(card: HTMLElement): string | null {
+  if (card.dataset.tabId) return `tab-${card.dataset.tabId}`;
+  if (card.dataset.sessionId) return `session-${card.dataset.sessionId}`;
+  if (card.dataset.webSearch === "1") return `search-${card.dataset.searchQuery}`;
+  return null;
+}
+
+interface CapturedGridState {
+  gridRect: DOMRect;
+  scrollTop: number;
+  stateMap: Map<string, { rect: DOMRect; element: HTMLElement }>;
+}
+
+function captureGridState(grid: HTMLElement): CapturedGridState {
+  const gridRect = grid.getBoundingClientRect();
+  const scrollTop = grid.scrollTop;
+  const stateMap = new Map<string, { rect: DOMRect; element: HTMLElement }>();
+  
+  // Only capture if grid is not virtual list
+  if (!grid.classList.contains("virtual-list")) {
+    const cards = grid.querySelectorAll(".tab-card");
+    cards.forEach((card) => {
+      const htmlCard = card as HTMLElement;
+      const key = getCardKey(htmlCard);
+      if (key) {
+        stateMap.set(key, {
+          rect: htmlCard.getBoundingClientRect(),
+          element: htmlCard,
+        });
+      }
+    });
+  }
+  
+  return { gridRect, scrollTop, stateMap };
+}
+
+function applyGridFLIP(
+  grid: HTMLElement,
+  captured: CapturedGridState,
+): void {
+  const { gridRect, scrollTop: oldScrollTop, stateMap: firstState } = captured;
+  if (firstState.size === 0) return; // Nothing to animate from
+
+  const newCards = grid.querySelectorAll(".tab-card");
+  const lastState = new Map<string, { rect: DOMRect; element: HTMLElement }>();
+
+  // 1. Capture new positions
+  newCards.forEach((card) => {
+    const htmlCard = card as HTMLElement;
+    const key = getCardKey(htmlCard);
+    if (key) {
+      lastState.set(key, {
+        rect: htmlCard.getBoundingClientRect(),
+        element: htmlCard,
+      });
+    }
+  });
+
+  const animatedCards: Array<{
+    card: AnimatedHTMLElement;
+    dx: number;
+    dy: number;
+  }> = [];
+  const enteringCards: AnimatedHTMLElement[] = [];
+
+  // 2. Invert and prepare entry/FLIP animations
+  newCards.forEach((card) => {
+    const htmlCard = card as AnimatedHTMLElement;
+    const key = getCardKey(htmlCard);
+    if (!key) return;
+
+    // Clean up any stale event listeners or styles on the card
+    if (htmlCard._onTransitionEnd) {
+      htmlCard.removeEventListener("transitionend", htmlCard._onTransitionEnd);
+      htmlCard._onTransitionEnd = undefined;
+    }
+    htmlCard.style.transition = "";
+    htmlCard.style.transform = "";
+    htmlCard.classList.remove("card-entering", "card-entering-active");
+
+    const first = firstState.get(key);
+    if (first) {
+      const last = lastState.get(key)!;
+      const dx = first.rect.left - last.rect.left;
+      const dy = first.rect.top - last.rect.top;
+
+      if (dx !== 0 || dy !== 0) {
+        htmlCard.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+        htmlCard.style.transition = "none";
+        animatedCards.push({ card: htmlCard, dx, dy });
+      }
+    } else {
+      htmlCard.classList.add("card-entering");
+      enteringCards.push(htmlCard);
+    }
+  });
+
+  // 3. Handle exiting cards (removed items)
+  firstState.forEach((first, key) => {
+    if (!lastState.has(key)) {
+      // Clone card to play exit animation
+      const clone = first.element.cloneNode(true) as HTMLElement;
+      clone.classList.remove("selected"); // Remove selected border to avoid confusion
+      clone.classList.add("card-exiting-start");
+
+      const left = first.rect.left - gridRect.left + grid.scrollLeft;
+      const top = first.rect.top - gridRect.top + oldScrollTop;
+
+      clone.style.left = `${left}px`;
+      clone.style.top = `${top}px`;
+      clone.style.width = `${first.rect.width}px`;
+      clone.style.height = `${first.rect.height}px`;
+      clone.style.margin = "0";
+
+      grid.appendChild(clone);
+
+      // Force layout trigger for clone
+      clone.offsetHeight;
+
+      requestAnimationFrame(() => {
+        clone.classList.add("card-exiting-active");
+      });
+
+      setTimeout(() => {
+        clone.remove();
+      }, 250); // Matches CSS transition duration
+    }
+  });
+
+  // 4. Play remaining and entering card transitions
+  if (animatedCards.length > 0 || enteringCards.length > 0) {
+    // Force layout trigger
+    grid.offsetHeight;
+
+    requestAnimationFrame(() => {
+      // Play FLIP animations
+      animatedCards.forEach(({ card }) => {
+        card.style.transition = "transform 0.25s cubic-bezier(0.2, 0, 0, 1)";
+        card.style.transform = "";
+
+        const onTransitionEnd = (e: TransitionEvent) => {
+          if (e.propertyName === "transform") {
+            card.style.transition = "";
+            card.removeEventListener("transitionend", onTransitionEnd);
+            card._onTransitionEnd = undefined;
+          }
+        };
+        card._onTransitionEnd = onTransitionEnd;
+        card.addEventListener("transitionend", onTransitionEnd);
+      });
+
+      // Play entering animations
+      enteringCards.forEach((card) => {
+        card.classList.add("card-entering-active");
+
+        const onTransitionEnd = (e: TransitionEvent) => {
+          if (e.propertyName === "opacity" || e.propertyName === "transform") {
+            card.classList.remove("card-entering", "card-entering-active");
+            card.removeEventListener("transitionend", onTransitionEnd);
+            card._onTransitionEnd = undefined;
+          }
+        };
+        card._onTransitionEnd = onTransitionEnd;
+        card.addEventListener("transitionend", onTransitionEnd);
+      });
+    });
+  }
+}
+

@@ -5,16 +5,16 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_index.ts-loader-k0gN4GQP.js": {
-    "file": "assets/index.ts-loader-k0gN4GQP.js",
-    "src": "_index.ts-loader-k0gN4GQP.js"
+  "_index.ts-loader-TX5qKs0x.js": {
+    "file": "assets/index.ts-loader-TX5qKs0x.js",
+    "src": "_index.ts-loader-TX5qKs0x.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
     "name": "modulepreload-polyfill"
   },
-  "_overlay-rrcWqy5a.js": {
-    "file": "assets/overlay-rrcWqy5a.js",
+  "_overlay-DAZk_yD-.js": {
+    "file": "assets/overlay-DAZk_yD-.js",
     "name": "overlay",
     "imports": [
       "_panel-CyF-QzN9.js"
@@ -24,11 +24,11 @@
     "file": "assets/panel-CyF-QzN9.js",
     "name": "panel"
   },
-  "_protected-popup-B2xb1sAz.js": {
-    "file": "assets/protected-popup-B2xb1sAz.js",
+  "_protected-popup-Bo9iMYXK.js": {
+    "file": "assets/protected-popup-Bo9iMYXK.js",
     "name": "protected-popup",
     "imports": [
-      "_overlay-rrcWqy5a.js"
+      "_overlay-DAZk_yD-.js"
     ]
   },
   "src/background/index.ts": {
@@ -41,29 +41,29 @@
     ]
   },
   "src/content/index.ts": {
-    "file": "assets/index.ts-CDlrpTvW.js",
+    "file": "assets/index.ts-UIz2X5JO.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
     "isEntry": true,
     "imports": [
-      "_overlay-rrcWqy5a.js",
+      "_overlay-DAZk_yD-.js",
       "_panel-CyF-QzN9.js"
     ]
   },
   "src/flow/index.html": {
-    "file": "assets/Flow-CUwiK9Rq.js",
+    "file": "assets/Flow-DKiwRaXl.js",
     "name": "Flow",
     "src": "src/flow/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-rrcWqy5a.js",
-      "_protected-popup-B2xb1sAz.js",
+      "_overlay-DAZk_yD-.js",
+      "_protected-popup-Bo9iMYXK.js",
       "_panel-CyF-QzN9.js"
     ]
   },
   "src/options/options.html": {
-    "file": "assets/Options-ClnFq6i8.js",
+    "file": "assets/Options-DrcXEVTl.js",
     "name": "Options",
     "src": "src/options/options.html",
     "isEntry": true,
@@ -71,7 +71,7 @@
       "_modulepreload-polyfill-B5Qt9EMX.js"
     ],
     "css": [
-      "assets/Options-DzJUIEhY.css"
+      "assets/Options-CC8XzakB.css"
     ]
   },
   "src/popup/popup.html": {
@@ -87,14 +87,14 @@
     ]
   },
   "src/quick-switch/index.html": {
-    "file": "assets/QuickSwitch-CWUHP1GQ.js",
+    "file": "assets/QuickSwitch-YHd65LED.js",
     "name": "QuickSwitch",
     "src": "src/quick-switch/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-rrcWqy5a.js",
-      "_protected-popup-B2xb1sAz.js",
+      "_overlay-DAZk_yD-.js",
+      "_protected-popup-Bo9iMYXK.js",
       "_panel-CyF-QzN9.js"
     ]
   }
