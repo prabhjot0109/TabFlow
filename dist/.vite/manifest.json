@@ -5,16 +5,16 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_index.ts-loader-TX5qKs0x.js": {
-    "file": "assets/index.ts-loader-TX5qKs0x.js",
-    "src": "_index.ts-loader-TX5qKs0x.js"
+  "_index.ts-loader-oYETD2vy.js": {
+    "file": "assets/index.ts-loader-oYETD2vy.js",
+    "src": "_index.ts-loader-oYETD2vy.js"
   },
   "_modulepreload-polyfill-B5Qt9EMX.js": {
     "file": "assets/modulepreload-polyfill-B5Qt9EMX.js",
     "name": "modulepreload-polyfill"
   },
-  "_overlay-DAZk_yD-.js": {
-    "file": "assets/overlay-DAZk_yD-.js",
+  "_overlay-lJG0U84J.js": {
+    "file": "assets/overlay-lJG0U84J.js",
     "name": "overlay",
     "imports": [
       "_panel-CyF-QzN9.js"
@@ -24,15 +24,15 @@
     "file": "assets/panel-CyF-QzN9.js",
     "name": "panel"
   },
-  "_protected-popup-Bo9iMYXK.js": {
-    "file": "assets/protected-popup-Bo9iMYXK.js",
+  "_protected-popup-C-TTNHt9.js": {
+    "file": "assets/protected-popup-C-TTNHt9.js",
     "name": "protected-popup",
     "imports": [
-      "_overlay-DAZk_yD-.js"
+      "_overlay-lJG0U84J.js"
     ]
   },
   "src/background/index.ts": {
-    "file": "assets/index.ts-BuVyOe--.js",
+    "file": "assets/index.ts-KoRlu4I1.js",
     "name": "index.ts",
     "src": "src/background/index.ts",
     "isEntry": true,
@@ -41,29 +41,29 @@
     ]
   },
   "src/content/index.ts": {
-    "file": "assets/index.ts-UIz2X5JO.js",
+    "file": "assets/index.ts-COVL7HTn.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
     "isEntry": true,
     "imports": [
-      "_overlay-DAZk_yD-.js",
+      "_overlay-lJG0U84J.js",
       "_panel-CyF-QzN9.js"
     ]
   },
   "src/flow/index.html": {
-    "file": "assets/Flow-DKiwRaXl.js",
+    "file": "assets/Flow-3499cbMd.js",
     "name": "Flow",
     "src": "src/flow/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-DAZk_yD-.js",
-      "_protected-popup-Bo9iMYXK.js",
+      "_overlay-lJG0U84J.js",
+      "_protected-popup-C-TTNHt9.js",
       "_panel-CyF-QzN9.js"
     ]
   },
   "src/options/options.html": {
-    "file": "assets/Options-DrcXEVTl.js",
+    "file": "assets/Options-DIobmT9k.js",
     "name": "Options",
     "src": "src/options/options.html",
     "isEntry": true,
@@ -71,11 +71,11 @@
       "_modulepreload-polyfill-B5Qt9EMX.js"
     ],
     "css": [
-      "assets/Options-CC8XzakB.css"
+      "assets/Options-ntAYnC72.css"
     ]
   },
   "src/popup/popup.html": {
-    "file": "assets/popup.html-m3oso1DM.js",
+    "file": "assets/popup.html-rQU0oQZ_.js",
     "name": "popup.html",
     "src": "src/popup/popup.html",
     "isEntry": true,
@@ -83,18 +83,18 @@
       "_modulepreload-polyfill-B5Qt9EMX.js"
     ],
     "css": [
-      "assets/popup-Bw23bJvx.css"
+      "assets/popup-CfJNgTGQ.css"
     ]
   },
   "src/quick-switch/index.html": {
-    "file": "assets/QuickSwitch-YHd65LED.js",
+    "file": "assets/QuickSwitch-BSep_QE1.js",
     "name": "QuickSwitch",
     "src": "src/quick-switch/index.html",
     "isEntry": true,
     "imports": [
       "_modulepreload-polyfill-B5Qt9EMX.js",
-      "_overlay-DAZk_yD-.js",
-      "_protected-popup-Bo9iMYXK.js",
+      "_overlay-lJG0U84J.js",
+      "_protected-popup-C-TTNHt9.js",
       "_panel-CyF-QzN9.js"
     ]
   }

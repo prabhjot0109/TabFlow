@@ -66,7 +66,12 @@ TAB_CARD_TEMPLATE.innerHTML = `
       <div class="tab-url" style="display: none;"></div>
     </div>
     <div class="tab-media-controls"></div>
-    <button class="tab-close-btn" type="button" data-action="close" title="Close tab" aria-label="Close tab">×</button>
+    <button class="tab-close-btn" type="button" data-action="close" title="Close tab" aria-label="Close tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
   </div>
 `;
 
@@ -76,29 +81,68 @@ TAB_CARD_TEMPLATE.innerHTML = `
 // ============================================================================
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function createSVGTemplate(pathD: string): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NS, "svg");
+interface SVGDef {
+  tag: string;
+  attrs: Record<string, string>;
+}
+
+function createSVGTemplate(shapes: SVGDef[]): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   svg.setAttribute("viewBox", "0 0 24 24");
-  const path = document.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", pathD);
-  svg.appendChild(path);
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+
+  shapes.forEach(({ tag, attrs }) => {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [key, val] of Object.entries(attrs)) {
+      el.setAttribute(key, val);
+    }
+    svg.appendChild(el);
+  });
   return svg;
 }
 
-
 // Pre-create SVG templates for cloning (faster than innerHTML)
-const SVG_PLAY_TEMPLATE = createSVGTemplate("M8 5v14l11-7z");
-const SVG_PAUSE_TEMPLATE = createSVGTemplate("M6 19h4V5H6v14zm8-14v14h4V5h-4z");
-const SVG_MUTE_TEMPLATE = createSVGTemplate(
-  "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"
-);
-const SVG_UNMUTE_TEMPLATE = createSVGTemplate(
-  "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
-);
+const SVG_PLAY_TEMPLATE = createSVGTemplate([
+  { tag: "polygon", attrs: { points: "6 3 20 12 6 21 6 3", fill: "currentColor" } }
+]);
+
+const SVG_PAUSE_TEMPLATE = createSVGTemplate([
+  { tag: "rect", attrs: { x: "14", y: "4", width: "4", height: "16", rx: "1", fill: "currentColor", stroke: "none" } },
+  { tag: "rect", attrs: { x: "6", y: "4", width: "4", height: "16", rx: "1", fill: "currentColor", stroke: "none" } }
+]);
+
+const SVG_MUTE_TEMPLATE = createSVGTemplate([
+  { tag: "polygon", attrs: { points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5", fill: "currentColor" } },
+  { tag: "line", attrs: { x1: "22", y1: "9", x2: "16", y2: "15" } },
+  { tag: "line", attrs: { x1: "16", y1: "9", x2: "22", y2: "15" } }
+]);
+
+const SVG_UNMUTE_TEMPLATE = createSVGTemplate([
+  { tag: "polygon", attrs: { points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5", fill: "currentColor" } },
+  { tag: "path", attrs: { d: "M15.54 8.46a5 5 0 0 1 0 7.07" } },
+  { tag: "path", attrs: { d: "M19.07 4.93a10 10 0 0 1 0 14.14" } }
+]);
 
 // Helper to clone SVG template (safer than innerHTML)
 function cloneSVG(template: SVGSVGElement): SVGSVGElement {
   return template.cloneNode(true) as SVGSVGElement;
+}
+
+export function createMediaIcon(type: "play" | "pause" | "mute" | "unmute"): SVGSVGElement {
+  switch (type) {
+    case "play":
+      return cloneSVG(SVG_PLAY_TEMPLATE);
+    case "pause":
+      return cloneSVG(SVG_PAUSE_TEMPLATE);
+    case "mute":
+      return cloneSVG(SVG_MUTE_TEMPLATE);
+    case "unmute":
+      return cloneSVG(SVG_UNMUTE_TEMPLATE);
+  }
 }
 
 // Create media control button with DOM API (no innerHTML)
@@ -613,10 +657,27 @@ export function renderHistoryView(historyData: {
   const backCol = document.createElement("div");
   backCol.className = "history-column";
 
-  const backHeader = document.createElement("div");
+  const backHeader = document.createElement("button");
+  backHeader.type = "button";
   backHeader.className = "history-column-header";
   backHeader.textContent = "← BACK";
+  
+  if (historyData.back && historyData.back.length > 0) {
+    backHeader.classList.add("clickable");
+    backHeader.title = "Go back 1 page";
+    backHeader.onclick = () => {
+      window.history.go(-1);
+      closeOverlay();
+    };
+  } else {
+    backHeader.classList.add("disabled");
+    backHeader.disabled = true;
+    backHeader.title = "No back history";
+  }
   backCol.appendChild(backHeader);
+
+  const backColBody = document.createElement("div");
+  backColBody.className = "history-column-body";
 
   if (historyData.back && historyData.back.length > 0) {
     // Create container for history items
@@ -632,7 +693,7 @@ export function renderHistoryView(historyData: {
       state.history.backEls.push(item);
     });
 
-    backCol.appendChild(backItemsContainer);
+    backColBody.appendChild(backItemsContainer);
   } else {
     const empty = document.createElement("div");
     empty.className = "tab-flow-empty";
@@ -640,17 +701,35 @@ export function renderHistoryView(historyData: {
     empty.style.padding = "20px";
     empty.style.textAlign = "center";
     empty.style.color = "var(--text-muted)";
-    backCol.appendChild(empty);
+    backColBody.appendChild(empty);
   }
+  backCol.appendChild(backColBody);
 
   // Forward Column
   const fwdCol = document.createElement("div");
   fwdCol.className = "history-column";
 
-  const fwdHeader = document.createElement("div");
+  const fwdHeader = document.createElement("button");
+  fwdHeader.type = "button";
   fwdHeader.className = "history-column-header";
   fwdHeader.textContent = "FORWARD →";
+  
+  if (historyData.forward && historyData.forward.length > 0) {
+    fwdHeader.classList.add("clickable");
+    fwdHeader.title = "Go forward 1 page";
+    fwdHeader.onclick = () => {
+      window.history.go(1);
+      closeOverlay();
+    };
+  } else {
+    fwdHeader.classList.add("disabled");
+    fwdHeader.disabled = true;
+    fwdHeader.title = "No forward history";
+  }
   fwdCol.appendChild(fwdHeader);
+
+  const fwdColBody = document.createElement("div");
+  fwdColBody.className = "history-column-body";
 
   if (historyData.forward && historyData.forward.length > 0) {
     // Create container for history items
@@ -665,7 +744,7 @@ export function renderHistoryView(historyData: {
       state.history.forwardEls.push(item);
     });
 
-    fwdCol.appendChild(fwdItemsContainer);
+    fwdColBody.appendChild(fwdItemsContainer);
   } else {
     const empty = document.createElement("div");
     empty.className = "tab-flow-empty";
@@ -673,8 +752,9 @@ export function renderHistoryView(historyData: {
     empty.style.padding = "20px";
     empty.style.textAlign = "center";
     empty.style.color = "var(--text-muted)";
-    fwdCol.appendChild(empty);
+    fwdColBody.appendChild(empty);
   }
+  fwdCol.appendChild(fwdColBody);
 
   container.appendChild(backCol);
   container.appendChild(fwdCol);

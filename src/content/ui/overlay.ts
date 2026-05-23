@@ -59,7 +59,7 @@ function createGridIcon(size?: number): SVGSVGElement {
     rect.setAttribute("y", y);
     rect.setAttribute("width", "7");
     rect.setAttribute("height", "7");
-    rect.setAttribute("rx", "1");
+    rect.setAttribute("rx", "1.5");
     svg.appendChild(rect);
   });
 
@@ -72,19 +72,24 @@ function createListIcon(): SVGSVGElement {
   svg.setAttribute("fill", "none");
   svg.setAttribute("stroke", "currentColor");
   svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
 
-  const lines = [
-    { y: "6" },
-    { y: "12" },
-    { y: "18" },
+  const elements = [
+    { tag: "line", attrs: { x1: "8", y1: "6", x2: "21", y2: "6" } },
+    { tag: "line", attrs: { x1: "8", y1: "12", x2: "21", y2: "12" } },
+    { tag: "line", attrs: { x1: "8", y1: "18", x2: "21", y2: "18" } },
+    { tag: "line", attrs: { x1: "3", y1: "6", x2: "3.01", y2: "6" } },
+    { tag: "line", attrs: { x1: "3", y1: "12", x2: "3.01", y2: "12" } },
+    { tag: "line", attrs: { x1: "3", y1: "18", x2: "3.01", y2: "18" } }
   ];
-  lines.forEach(({ y }) => {
-    const line = createSvgElement("line");
-    line.setAttribute("x1", "3");
-    line.setAttribute("x2", "21");
-    line.setAttribute("y1", y);
-    line.setAttribute("y2", y);
-    svg.appendChild(line);
+
+  elements.forEach(({ tag, attrs }) => {
+    const el = createSvgElement(tag);
+    for (const [key, val] of Object.entries(attrs)) {
+      el.setAttribute(key, val);
+    }
+    svg.appendChild(el);
   });
 
   return svg;

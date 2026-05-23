@@ -24,14 +24,18 @@ function ensureTabOpenOrder(tabs: TabWithId[]): void {
   });
 }
 
-function toSharedTab(tab: TabWithId, screenshotData: string | null): Tab {
+function toSharedTab(
+  tab: TabWithId,
+  screenshotData: string | null,
+  fallbackMetadata?: { title: string; favIconUrl?: string }
+): Tab {
   const isPlaying = mediaTracker.isMediaPlaying(tab.id) || Boolean(tab.audible);
 
   return {
     id: tab.id,
-    title: tab.title || "Untitled",
-    url: tab.url,
-    favIconUrl: tab.favIconUrl,
+    title: tab.title && tab.title !== "Untitled" ? tab.title : (fallbackMetadata?.title || "Untitled"),
+    url: tab.url || tab.pendingUrl || "",
+    favIconUrl: tab.favIconUrl ? tab.favIconUrl : fallbackMetadata?.favIconUrl,
     screenshot: screenshotData,
     pinned: tab.pinned,
     index: tab.index,
@@ -62,6 +66,14 @@ export async function buildTabsForWindow(
   const { includeScreenshots = false, recordCacheMetrics = false } = options;
   const sortedTabs = await getSortedWindowTabs(windowId);
 
+  // Build a map of URL to title/favIconUrl from loaded tabs
+  const urlMetadataMap = new Map<string, { title: string; favIconUrl?: string }>();
+  for (const tab of sortedTabs) {
+    if (tab.title && tab.title !== "Untitled" && tab.url) {
+      urlMetadataMap.set(tab.url, { title: tab.title, favIconUrl: tab.favIconUrl });
+    }
+  }
+
   return sortedTabs.map((tab, index) => {
     let screenshotData: string | null = null;
     const shouldAttachScreenshot =
@@ -83,7 +95,9 @@ export async function buildTabsForWindow(
       }
     }
 
-    return toSharedTab(tab, screenshotData);
+    const actualUrl = tab.url || tab.pendingUrl;
+    const fallbackMetadata = actualUrl ? urlMetadataMap.get(actualUrl) : undefined;
+    return toSharedTab(tab, screenshotData, fallbackMetadata);
   });
 }
 

@@ -318,14 +318,14 @@ export async function captureTabScreenshot(
     return null;
   }
 }
-
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 export function isTabCapturable(tab: chrome.tabs.Tab): boolean {
   if (tab.discarded) return false;
-  if (!tab.url) return false;
+  const url = tab.url || tab.pendingUrl;
+  if (!url) return false;
 
   // Protected schemes that cannot be scripted
   const protectedSchemes = [
@@ -336,10 +336,7 @@ export function isTabCapturable(tab: chrome.tabs.Tab): boolean {
     "view-source:",
   ];
 
-  if (
-    tab.url &&
-    protectedSchemes.some((scheme) => tab.url!.startsWith(scheme))
-  ) {
+  if (protectedSchemes.some((scheme) => url.startsWith(scheme))) {
     return false;
   }
 

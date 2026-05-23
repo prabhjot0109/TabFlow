@@ -1,36 +1,36 @@
 /* Material 3 - Lighter Dark Theme */
 :root {
-  --bg: #202020;
-  --surface: #202020;
-  --surface-container: #202025;
-  --card: #2a2a30;
+  --bg: #141416;
+  --surface: rgba(20, 20, 22, 0.7);
+  --surface-container: rgba(255, 255, 255, 0.05);
+  --card: rgba(255, 255, 255, 0.08);
   --text: #f4f4f8;
   --text-secondary: #c9c9d0;
-  --muted: #9999a5;
-  --border: rgba(255, 255, 255, 0.12);
-  --border-glow: rgba(255, 255, 255, 0.18);
+  --muted: #8e8e93;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(255, 255, 255, 0.15);
   --accent: #e0e0e8;
-  --accent-container: rgba(255, 255, 255, 0.08);
+  --accent-container: rgba(255, 255, 255, 0.06);
 
   /* Material 3 Shape - Extra Rounded */
-  --radius-xl: 24px;
-  --radius-lg: 20px;
-  --radius-md: 16px;
-  --radius-sm: 12px;
+  --radius-xl: 16px;
+  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f8f8fc;
-    --surface: #ffffff;
-    --surface-container: #f0f0f5;
-    --card: #e8e8ef;
-    --text: #1a1a1f;
-    --text-secondary: #44444d;
-    --muted: #72727c;
+    --bg: #f5f5f7;
+    --surface: rgba(255, 255, 255, 0.7);
+    --surface-container: rgba(0, 0, 0, 0.04);
+    --card: rgba(0, 0, 0, 0.06);
+    --text: #1d1d1f;
+    --text-secondary: #434345;
+    --muted: #86868b;
     --border: rgba(0, 0, 0, 0.08);
     --border-glow: rgba(0, 0, 0, 0.12);
-    --accent: #2d2d35;
+    --accent: #000000;
     --accent-container: rgba(0, 0, 0, 0.04);
   }
 }
@@ -130,10 +130,12 @@ h1 {
 
 .section {
   background: var(--surface-container);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: var(--radius-xl);
   padding: 16px;
   border: 1px solid var(--border);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
 }
 
 .key-list {

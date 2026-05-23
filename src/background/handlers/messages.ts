@@ -263,6 +263,7 @@ export async function handleMessage(
         }
         break;
 
+
       case "duplicateTab":
         if (!parsedRequest.tabId || typeof parsedRequest.tabId !== "number") {
           sendResponse({ success: false, error: "Invalid tab ID" });
@@ -275,7 +276,22 @@ export async function handleMessage(
             sendResponse({ success: false, error: "Tab no longer exists" });
             return;
           }
-          const duplicatedTab = await chrome.tabs.duplicate(parsedRequest.tabId);
+          const duplicatedTab = await chrome.tabs.create({
+            url: tab.url,
+            active: false,
+            index: tab.index + 1,
+            openerTabId: tab.id,
+            pinned: tab.pinned,
+          });
+
+          // Copy original tab's cached screenshot to the duplicated tab
+          if (duplicatedTab?.id && tab.id) {
+            const cachedScreenshot = screenshotCache.getIfFresh(tab.id, 99999999);
+            if (cachedScreenshot) {
+              screenshotCache.set(duplicatedTab.id, cachedScreenshot.data);
+            }
+          }
+
           sendResponse({ success: true, duplicatedTabId: duplicatedTab?.id });
         } catch (error: unknown) {
           console.error("[ERROR] Failed to duplicate tab:", error);
