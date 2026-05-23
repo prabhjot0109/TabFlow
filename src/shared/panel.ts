@@ -1,8 +1,8 @@
 export const EXTENSION_PANEL = Object.freeze({
   width: 700,
   height: 500,
-  popupWidth: 800,
-  popupHeight: 560,
+  popupWidth: 700,
+  popupHeight: 500,
   minHeight: 220,
   viewportMargin: 20,
   compactGridItems: 3,
