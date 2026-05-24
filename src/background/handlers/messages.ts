@@ -276,13 +276,32 @@ export async function handleMessage(
             sendResponse({ success: false, error: "Tab no longer exists" });
             return;
           }
-          const duplicatedTab = await chrome.tabs.create({
-            url: tab.url,
-            active: false,
-            index: tab.index + 1,
-            openerTabId: tab.id,
-            pinned: tab.pinned,
-          });
+
+          let duplicatedTab: chrome.tabs.Tab | undefined;
+
+          try {
+            // First try chrome.tabs.create with active: false so the user
+            // stays on the current tab without any flicker. This works for
+            // regular http/https pages.
+            duplicatedTab = await chrome.tabs.create({
+              url: tab.url,
+              active: false,
+              index: tab.index + 1,
+              openerTabId: tab.id,
+              pinned: tab.pinned,
+            });
+          } catch {
+            // chrome.tabs.create fails on protected URLs (chrome://,
+            // chrome-extension://, edge://, etc.). Fall back to
+            // chrome.tabs.duplicate which works on all pages.
+            duplicatedTab = await chrome.tabs.duplicate(parsedRequest.tabId);
+
+            // duplicate() activates the new tab by default, so switch back
+            // to the original tab to keep the user in place.
+            if (duplicatedTab?.id) {
+              await chrome.tabs.update(parsedRequest.tabId, { active: true });
+            }
+          }
 
           // Copy original tab's cached screenshot to the duplicated tab
           if (duplicatedTab?.id && tab.id) {
