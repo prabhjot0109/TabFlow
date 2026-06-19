@@ -11,7 +11,7 @@ Tab Flow is a browser extension that helps you navigate between your open tabs q
 To provide the tab switching functionality, Tab Flow accesses:
 
 - **Tab Information:** Title, URL, and favicon of your open tabs (to display in the tab switcher)
-- **Tab Screenshots:** Visual captures of your tabs (to show thumbnail previews)
+- **Tab Screenshots:** A visual capture of the tab you're viewing, taken only at the moment you open the switcher (via the `activeTab` permission), to show thumbnail previews. Tab Flow captures only the tab you explicitly open the switcher from — never other tabs, and never silently in the background.
 - **Tab Groups:** Names and colors of your Chrome tab groups (to organize the display)
 - **Recently Closed Tabs:** Session information for tabs you've recently closed (to allow restoration)
 
@@ -32,31 +32,26 @@ All data is stored **locally on your device** using:
 
 ## Data Retention
 
-- **Screenshots:** Cached using an LRU (Least Recently Used) algorithm, automatically cleared as new tabs are captured. Maximum cache size is approximately 20MB.
+- **Screenshots:** Cached using an LRU (Least Recently Used) algorithm, automatically evicted as new tabs are captured. The cache defaults to roughly 50MB (configurable from 10–200MB in the options page).
 - **Preferences:** Stored until you uninstall the extension or clear extension data.
 
 ## Permissions Explained
 
-| Permission   | Why We Need It                                      |
-| ------------ | --------------------------------------------------- |
-| `tabs`       | Access tab titles, URLs, and favicons for display   |
-| `tabGroups`  | Read tab group information to organize the display  |
-| `activeTab`  | Interact with the currently active tab              |
-| `storage`    | Save your preferences and cache screenshots locally |
-| `scripting`  | Inject the tab switcher overlay into web pages      |
-| `sessions`   | Access recently closed tabs for the restore feature |
-| `favicon`    | Display website icons in the tab list               |
-| `alarms`     | Schedule background tasks for screenshot updates    |
-| `<all_urls>` | Capture screenshots and show overlay on any webpage |
+| Permission   | Why We Need It                                                        |
+| ------------ | -------------------------------------------------------------------- |
+| `tabs`       | Access tab titles, URLs, and favicons for display                              |
+| `tabGroups`  | Read tab group information to organize the display                             |
+| `activeTab`  | Inject the overlay into, and capture a preview of, the tab you're on — only when you press a shortcut |
+| `storage`    | Save your preferences and cache screenshots locally                           |
+| `scripting`  | Inject the tab switcher overlay into the active web page                       |
+| `sessions`   | Access recently closed tabs for the restore feature                           |
+| `favicon`    | Display website icons in the tab list                                          |
 
-## Host Permissions
+## No Broad Host Permissions
 
-Tab Flow requires access to all URLs (`<all_urls>`) for two reasons:
+Tab Flow does **not** request `<all_urls>` or any broad "read and change data on all sites" access, so you won't see that warning at install. Instead it uses the `activeTab` permission: when you press a shortcut, Chrome grants Tab Flow temporary access to **only the tab you're currently on**, just long enough to draw the overlay and capture that one tab's preview. It has no standing access to any site.
 
-1. **Screenshot Capture:** To capture visual previews of your tabs, we need permission to access the visible content of any webpage.
-2. **Overlay Injection:** The tab switcher overlay needs to be displayed on any page you're viewing.
-
-We do **not** read, analyze, or store the content of web pages beyond capturing screenshots for the preview tiles.
+We do **not** read, analyze, or store the content of web pages beyond capturing those preview screenshots.
 
 ## Limited Use Disclosure
 

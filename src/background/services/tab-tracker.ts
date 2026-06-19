@@ -9,12 +9,6 @@ let recentTabOrder: number[] = [];
 // Track when tabs were opened (tabId -> timestamp)
 const tabOpenOrder = new Map<number, number>();
 
-// Track previous active tab for better screenshot capture
-let previousActiveTabId: number | null = null;
-
-// Track when the active tab was switched to (for idle detection)
-let activeTabStartTime = Date.now();
-
 // Flag to track if recent order has been restored
 let recentOrderRestored = false;
 
@@ -29,14 +23,6 @@ export function getTabOpenTime(tabId: number): number | undefined {
   return tabOpenOrder.get(tabId);
 }
 
-export function getPreviousActiveTabId(): number | null {
-  return previousActiveTabId;
-}
-
-export function getActiveTabStartTime(): number {
-  return activeTabStartTime;
-}
-
 export function isRecentOrderRestored(): boolean {
   return recentOrderRestored;
 }
@@ -44,14 +30,6 @@ export function isRecentOrderRestored(): boolean {
 // ============================================================================
 // SETTERS
 // ============================================================================
-
-export function setPreviousActiveTabId(tabId: number): void {
-  previousActiveTabId = tabId;
-}
-
-export function resetActiveTabStartTime(): void {
-  activeTabStartTime = Date.now();
-}
 
 export function setTabOpenTime(tabId: number, timestamp?: number): void {
   tabOpenOrder.set(tabId, timestamp ?? Date.now());
@@ -200,7 +178,6 @@ export async function initializeExistingTabs(): Promise<void> {
         if (recentTabOrder.indexOf(activeTab.id) === -1) {
           updateRecentTabOrder(activeTab.id);
         }
-        previousActiveTabId = activeTab.id;
       }
     }
 

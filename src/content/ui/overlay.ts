@@ -914,10 +914,20 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
   quickSwitchLastSelectedIndex = -1;
   const fragment = document.createDocumentFragment();
 
+  const isListView = cachedQuickSwitchViewMode === "list";
+
   tabs.forEach((tab, index) => {
+    const screenshot =
+      typeof tab.screenshot === "string" && tab.screenshot.length > 0
+        ? tab.screenshot
+        : null;
+    // Screenshots are only shown in grid view (list view is a compact row).
+    const hasValidScreenshot = Boolean(screenshot) && !isListView;
+
     const card = document.createElement("div");
-    card.className = `tab-card${index === state.selectedIndex ? " selected" : ""
-      }${tab.active ? " current-tab" : ""}`;
+    card.className = `tab-card ${hasValidScreenshot ? "has-screenshot" : "has-favicon"
+      }${index === state.selectedIndex ? " selected" : ""}${tab.active ? " current-tab" : ""
+      }`;
     card.dataset.tabId = String(tab.id);
     card.dataset.tabIndex = String(index);
     card.setAttribute("role", "option");
@@ -926,28 +936,38 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
       index === state.selectedIndex ? "true" : "false"
     );
 
-    // For grid view, we need the full card structure with thumbnail
-    // Create thumbnail area
+    // Thumbnail area: real screenshot when we have one (grid view), otherwise a
+    // favicon tile fallback.
     const thumbnail = document.createElement("div");
     thumbnail.className = "tab-thumbnail";
 
-    // Favicon tile (shown in thumbnail area for grid view)
-    const faviconTile = document.createElement("div");
-    faviconTile.className = "favicon-tile";
+    if (hasValidScreenshot && screenshot) {
+      const img = document.createElement("img");
+      img.className = "screenshot-img";
+      img.alt = tab.title || "";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = screenshot;
+      thumbnail.appendChild(img);
+    } else {
+      // Favicon tile (shown in thumbnail area for grid view)
+      const faviconTile = document.createElement("div");
+      faviconTile.className = "favicon-tile";
 
-    const faviconLarge = document.createElement("img");
-    faviconLarge.className = "favicon-large";
-    faviconLarge.src = tab.favIconUrl || getFaviconUrl(tab.url) || "";
-    faviconLarge.alt = "";
-    faviconLarge.onerror = () => {
-      faviconLarge.style.display = "none";
-      const letter = document.createElement("div");
-      letter.className = "favicon-letter";
-      letter.textContent = (tab.title || "?")[0].toUpperCase();
-      faviconTile.appendChild(letter);
-    };
-    faviconTile.appendChild(faviconLarge);
-    thumbnail.appendChild(faviconTile);
+      const faviconLarge = document.createElement("img");
+      faviconLarge.className = "favicon-large";
+      faviconLarge.src = tab.favIconUrl || getFaviconUrl(tab.url) || "";
+      faviconLarge.alt = "";
+      faviconLarge.onerror = () => {
+        faviconLarge.style.display = "none";
+        const letter = document.createElement("div");
+        letter.className = "favicon-letter";
+        letter.textContent = (tab.title || "?")[0].toUpperCase();
+        faviconTile.appendChild(letter);
+      };
+      faviconTile.appendChild(faviconLarge);
+      thumbnail.appendChild(faviconTile);
+    }
 
     // Tab info section
     const tabInfo = document.createElement("div");

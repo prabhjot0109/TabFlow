@@ -1,18 +1,12 @@
 // ============================================================================
 // SCREENSHOT SERVICE
-// Handles screenshot capture with rate limiting and queue management
+// Captures a tab's visible area on demand (at switcher invocation), downscales
+// it, and stores it in the LRU cache.
 // ============================================================================
 
 import { PERF_CONFIG } from "../config";
 import { LRUCache } from "../cache/lru-cache";
 import { perfMetrics } from "../utils/performance";
-
-// Queue for rate-limited captures
-const captureQueue: { tabId: number; timestamp: number }[] = [];
-let lastCaptureTime = 0;
-let isProcessingQueue = false;
-const queuedCaptures = new Set<number>();
-const pendingCaptures = new Set<number>();
 
 // Current quality tier setting
 let currentQualityTier: string = PERF_CONFIG.DEFAULT_QUALITY_TIER;
@@ -47,44 +41,8 @@ export async function loadQualityTierFromStorage(): Promise<void> {
 }
 
 // ============================================================================
-// CAPTURE QUEUE MANAGEMENT
+// IMAGE HELPERS
 // ============================================================================
-
-export function queueCapture(
-  tabId: number,
-  screenshotCache: LRUCache,
-  priority = false
-): void {
-  if (screenshotCache.isFresh(tabId, PERF_CONFIG.SCREENSHOT_CACHE_DURATION)) {
-    return;
-  }
-
-  // Check if already in queue or pending
-  if (queuedCaptures.has(tabId) || pendingCaptures.has(tabId)) {
-    return;
-  }
-
-  const queueItem = { tabId, timestamp: Date.now() };
-  queuedCaptures.add(tabId);
-
-  if (priority) {
-    captureQueue.unshift(queueItem);
-  } else {
-    captureQueue.push(queueItem);
-  }
-
-  trimCaptureQueue();
-  processQueue(screenshotCache);
-}
-
-function trimCaptureQueue(): void {
-  while (captureQueue.length > PERF_CONFIG.MAX_CAPTURE_QUEUE_LENGTH) {
-    const removed = captureQueue.pop();
-    if (removed) {
-      queuedCaptures.delete(removed.tabId);
-    }
-  }
-}
 
 function getThumbnailTargetSize(width: number, height: number): {
   width: number;
@@ -164,49 +122,22 @@ async function downscaleScreenshot(
   }
 }
 
-async function processQueue(screenshotCache: LRUCache): Promise<void> {
-  if (isProcessingQueue || captureQueue.length === 0) return;
-
-  isProcessingQueue = true;
-
-  while (captureQueue.length > 0) {
-    const now = Date.now();
-    const timeSinceLastCapture = now - lastCaptureTime;
-
-    // Enforce rate limit: max 2 captures per second
-    if (timeSinceLastCapture < PERF_CONFIG.THROTTLE_INTERVAL) {
-      const waitTime = PERF_CONFIG.THROTTLE_INTERVAL - timeSinceLastCapture;
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-
-    const item = captureQueue.shift();
-    if (item) {
-      queuedCaptures.delete(item.tabId);
-    }
-    if (item && item.tabId) {
-      pendingCaptures.add(item.tabId);
-
-      try {
-        await captureTabScreenshot(item.tabId, screenshotCache);
-      } finally {
-        pendingCaptures.delete(item.tabId);
-      }
-    }
-
-    lastCaptureTime = Date.now();
-  }
-
-  isProcessingQueue = false;
-}
-
 // ============================================================================
 // SCREENSHOT CAPTURE
 // ============================================================================
 
+type CaptureOptions = {
+  // Skip the "settle" delay before capturing. Used for invocation-time captures
+  // where the page is already fully rendered (the user was just looking at it),
+  // so the screenshot can be taken right away — before the overlay is drawn.
+  immediate?: boolean;
+};
+
 export async function captureTabScreenshot(
   tabId: number,
   screenshotCache: LRUCache,
-  forceQuality: string | null = null
+  forceQuality: string | null = null,
+  options: CaptureOptions = {}
 ): Promise<string | null> {
   try {
     if (!forceQuality) {
@@ -231,16 +162,18 @@ export async function captureTabScreenshot(
       return null;
     }
 
-    // Wait for page to be fully rendered
-    await new Promise((resolve) =>
-      setTimeout(resolve, PERF_CONFIG.CAPTURE_DELAY + 50)
-    );
+    if (!options.immediate) {
+      // Wait for page to be fully rendered
+      await new Promise((resolve) =>
+        setTimeout(resolve, PERF_CONFIG.CAPTURE_DELAY + 50)
+      );
 
-    // Verify tab is still active after delay
-    const tabAfterDelay = await chrome.tabs.get(tabId).catch(() => null);
-    if (!tabAfterDelay || !tabAfterDelay.active) {
-      console.debug(`[CAPTURE] Tab ${tabId} no longer active after delay`);
-      return null;
+      // Verify tab is still active after delay
+      const tabAfterDelay = await chrome.tabs.get(tabId).catch(() => null);
+      if (!tabAfterDelay || !tabAfterDelay.active) {
+        console.debug(`[CAPTURE] Tab ${tabId} no longer active after delay`);
+        return null;
+      }
     }
 
     // Get quality settings
@@ -341,17 +274,6 @@ export function isTabCapturable(tab: chrome.tabs.Tab): boolean {
   }
 
   return true;
-}
-
-export function removePendingCapture(tabId: number): void {
-  pendingCaptures.delete(tabId);
-  if (!queuedCaptures.delete(tabId)) return;
-
-  for (let index = captureQueue.length - 1; index >= 0; index--) {
-    if (captureQueue[index]?.tabId === tabId) {
-      captureQueue.splice(index, 1);
-    }
-  }
 }
 
 

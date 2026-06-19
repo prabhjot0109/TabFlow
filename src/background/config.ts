@@ -29,11 +29,5 @@ export const PERF_CONFIG = {
     PERFORMANCE: { quality: 50, maxSize: 130 * 1024, label: "Performance" },
   } as Record<string, QualityTier>,
   DEFAULT_QUALITY_TIER: "NORMAL", // Balanced quality/speed default for large tab sets
-
-  // Alarm names for chrome.alarms API
-  ALARMS: {
-    IDLE_CHECK: "idle-screenshot-check",
-    PERF_LOG: "performance-log",
-  },
 } as const;
 

@@ -50,7 +50,9 @@ Press `Alt + Q` and Tab Flow shows a compact grid of your most recently used tab
 
 ### 🖼️ Live Thumbnail Previews
 
-Every tab card shows a real screenshot. No generic icons, no text-only lists. You can visually scan for the page you want the same way you'd flip through papers on a desk. Screenshots are captured intelligently — on page load, on tab switch, and periodically when you stay on a page — so they stay fresh.
+Tabs show real screenshots — in both **Tab Flow** (`Alt + W`) and **Quick Switch** (`Alt + Q`). No generic icons, no text-only lists. You can visually scan for the page you want the same way you'd flip through papers on a desk.
+
+Previews are captured using the `activeTab` permission — Tab Flow grabs a screenshot of the tab you're on at the moment you open the switcher. So a tab gets its preview the first time you open the switcher while on it, and it's refreshed each time after. Tabs you haven't opened the switcher from yet show clean favicon cards until then. The upside: **no "read and change data on all sites" permission**, and Tab Flow never captures or touches a page in the background.
 
 ### 🔊 Media Controls
 
@@ -226,8 +228,8 @@ For the formal details, see the [Privacy Policy](./PRIVACY.md).
 
 ## FAQ
 
-**Why does it need access to all sites?**
-Tab Flow only injects the overlay when you trigger a keyboard shortcut. The `<all_urls>` permission is required so it can (a) capture tab screenshots and (b) display the overlay on any page. It does not read, analyze, or store page content.
+**Does it need access to all my sites?**
+No. Tab Flow does **not** request `<all_urls>` or any broad host permission, so you won't get the "read and change all your data on all websites" warning. It uses `activeTab`, which gives it temporary access to **only the current tab** — and only when you press a shortcut — to draw the overlay and capture that tab's preview. It has no standing access to any site and never touches pages in the background.
 
 **Does it work on `chrome://` pages?**
 Chrome doesn't allow extensions to inject into internal pages. On those pages, Tab Flow opens a popup window with the same UI and functionality — you don't lose any capability.

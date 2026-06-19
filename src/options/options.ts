@@ -190,3 +190,5 @@ initialize().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   setStatus(message, true);
 });
+
+export {};

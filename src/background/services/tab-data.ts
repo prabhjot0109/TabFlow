@@ -139,6 +139,8 @@ export async function buildQuickSwitchPayload(
   windowId: number,
   screenshotCache: LRUCache,
 ): Promise<{ tabs: Tab[] }> {
-  const tabs = await buildTabsForWindow(windowId, screenshotCache);
+  const tabs = await buildTabsForWindow(windowId, screenshotCache, {
+    includeScreenshots: true,
+  });
   return { tabs };
 }

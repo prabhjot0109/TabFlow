@@ -234,19 +234,30 @@ async function initialize(): Promise<void> {
   setTimeout(async () => {
     await tabTracker.initializeExistingTabs();
     await mediaTracker.initializeAudibleTabs();
-
-    // Queue capture for active tab
-    const [activeTab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (activeTab?.id) {
-      screenshot.queueCapture(activeTab.id, screenshotCache, true);
-    }
   }, 100);
+}
 
-  // Set up alarms for periodic tasks (replaces setInterval)
-  await setupAlarms();
+// Capture the tab the user just invoked the switcher from. A keyboard command
+// (or action click) grants `activeTab` for the current tab, which is all
+// `captureVisibleTab` needs — no broad host permission required. This is the
+// only place captures originate: previews are refreshed when you open the
+// switcher while on a tab, never silently in the background.
+//
+// The capture is awaited and taken with `immediate` (no settle delay) so it
+// happens BEFORE the overlay is drawn over the page — otherwise the screenshot
+// would include our own overlay. It returns instantly when the cache is still
+// fresh, so repeated opens stay fast.
+async function captureInvokedTab(tab: chrome.tabs.Tab): Promise<void> {
+  if (typeof tab.id !== "number" || !screenshot.isTabCapturable(tab)) {
+    return;
+  }
+  try {
+    await screenshot.captureTabScreenshot(tab.id, screenshotCache, null, {
+      immediate: true,
+    });
+  } catch (error) {
+    console.debug("[CAPTURE] Failed to capture invoked tab:", error);
+  }
 }
 
 async function refreshScreenshotCacheIfProfileChanged(): Promise<void> {
@@ -268,31 +279,6 @@ async function refreshScreenshotCacheIfProfileChanged(): Promise<void> {
   } catch (error) {
     console.warn("[CACHE] Failed to refresh screenshot cache profile:", error);
   }
-}
-
-// ============================================================================
-// CHROME ALARMS (Replaces setInterval for service worker reliability)
-// ============================================================================
-
-async function setupAlarms(): Promise<void> {
-  // Clear any existing alarms first
-  await chrome.alarms.clearAll();
-
-  // Idle check alarm - every 1 minute
-  chrome.alarms.create(PERF_CONFIG.ALARMS.IDLE_CHECK, {
-    delayInMinutes: 1,
-    periodInMinutes: 1,
-  });
-
-  // Performance logging alarm - every 1 minute (if enabled)
-  if (PERF_CONFIG.PERFORMANCE_LOGGING) {
-    chrome.alarms.create(PERF_CONFIG.ALARMS.PERF_LOG, {
-      delayInMinutes: 1,
-      periodInMinutes: 1,
-    });
-  }
-
-  log("[ALARMS] Periodic alarms set up successfully");
 }
 
 async function loadCacheSettings(): Promise<void> {
@@ -320,65 +306,19 @@ async function loadCacheSettings(): Promise<void> {
   }
 }
 
-// Alarm listener
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  switch (alarm.name) {
-    case PERF_CONFIG.ALARMS.IDLE_CHECK:
-      await handleIdleCheck();
-      break;
-    case PERF_CONFIG.ALARMS.PERF_LOG:
-      perfMetrics.logStats(screenshotCache);
-      break;
-  }
-});
-
-// Idle check: Re-capture tabs if user stays on them > 5 minutes
-async function handleIdleCheck(): Promise<void> {
-  try {
-    const previousActiveTabId = tabTracker.getPreviousActiveTabId();
-    if (!previousActiveTabId) return;
-
-    const idleThreshold = 5 * 60 * 1000; // 5 minutes
-    const startTime = tabTracker.getActiveTabStartTime();
-
-    if (Date.now() - startTime > idleThreshold) {
-      console.debug(
-        `[IDLE] Tab ${previousActiveTabId} idle > 5m, refreshing screenshot`,
-      );
-      tabTracker.resetActiveTabStartTime();
-      screenshot.queueCapture(previousActiveTabId, screenshotCache, true);
-    }
-  } catch (error) {
-    console.debug("[IDLE] Error in idle check:", error);
-  }
-}
-
 // ============================================================================
 // TAB EVENT LISTENERS
 // ============================================================================
 
-let tabSwitchCaptureTimeout: ReturnType<typeof setTimeout> | null = null;
-
 if (typeof chrome !== "undefined" && chrome.tabs) {
-  // Listen for tab activation
+  // Listen for tab activation — track recency only. Screenshots cannot be
+  // captured here (a plain tab switch is not a user invocation, so the
+  // extension has no access to the page); captures happen at invocation time
+  // instead. See captureInvokedTab.
   chrome.tabs.onActivated.addListener(
-    async (activeInfo: chrome.tabs.OnActivatedInfo) => {
+    (activeInfo: chrome.tabs.OnActivatedInfo) => {
       try {
-        tabTracker.setPreviousActiveTabId(activeInfo.tabId);
-        tabTracker.resetActiveTabStartTime();
         tabTracker.updateRecentTabOrder(activeInfo.tabId);
-
-        // Cancel previous capture if user switched away quickly (debounce)
-        if (tabSwitchCaptureTimeout) {
-          clearTimeout(tabSwitchCaptureTimeout);
-        }
-
-        // Capture after a "settle" delay (500ms)
-        // This prevents capturing tabs that are merely stepped over
-        tabSwitchCaptureTimeout = setTimeout(() => {
-          screenshot.queueCapture(activeInfo.tabId, screenshotCache, true);
-          tabSwitchCaptureTimeout = null;
-        }, 500);
       } catch (e) {
         console.debug("[TAB] Error in onActivated:", e);
       }
@@ -401,13 +341,6 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
         if (changeInfo.audible !== undefined && changeInfo.audible) {
           mediaTracker.addMediaTab(tabId);
         }
-
-        // Capture when page finishes loading and tab is active
-        if (changeInfo.status === "complete" && tab.active) {
-          setTimeout(() => {
-            screenshot.queueCapture(tabId, screenshotCache, true);
-          }, 300);
-        }
       } catch (e) {
         console.debug("[TAB] Error in onUpdated:", e);
       }
@@ -429,7 +362,6 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
       screenshotCache.delete(tabId);
       tabTracker.removeFromRecentOrder(tabId);
       tabTracker.removeTabOpenOrder(tabId);
-      screenshot.removePendingCapture(tabId);
       mediaTracker.removeMediaTab(tabId);
       console.debug(`[CLEANUP] Removed tab ${tabId} from cache`);
     } catch (e) {
@@ -493,13 +425,9 @@ async function handleShowTabFlow(): Promise<void> {
       return;
     }
 
-    const { tabs: tabsData, groups: groupsData } = await buildFlowPayload(
-      currentWindow.id,
-      screenshotCache,
-      { recordCacheMetrics: true },
-    );
-
-    // Get active tab
+    // Get active tab first so we can capture its clean preview BEFORE the
+    // overlay is drawn over the page (otherwise the screenshot includes the
+    // overlay) and before we build the payload, so the payload carries it.
     const [activeTab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
@@ -510,7 +438,18 @@ async function handleShowTabFlow(): Promise<void> {
       return;
     }
 
-    if (!screenshot.isTabCapturable(activeTab)) {
+    const capturable = screenshot.isTabCapturable(activeTab);
+    if (capturable) {
+      await captureInvokedTab(activeTab);
+    }
+
+    const { tabs: tabsData, groups: groupsData } = await buildFlowPayload(
+      currentWindow.id,
+      screenshotCache,
+      { recordCacheMetrics: true },
+    );
+
+    if (!capturable) {
       console.log(
         "[INJECT] Protected page detected, opening popup window fallback...",
       );
@@ -615,6 +554,13 @@ async function handleQuickSwitch(): Promise<void> {
       if (cycled) {
         return;
       }
+    }
+
+    // The command invocation grants activeTab for this tab, so refresh its
+    // preview now — awaited and taken before the overlay is drawn so the
+    // overlay isn't captured. Returns instantly when the cache is fresh.
+    if (screenshot.isTabCapturable(activeTab)) {
+      await captureInvokedTab(activeTab);
     }
 
     // Restore recent order asynchronously. Quick switch can open immediately
