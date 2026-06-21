@@ -101,16 +101,22 @@ function createKbd(text: string): HTMLElement {
   return kbd;
 }
 
-function getFaviconUrl(url?: string, size = 32): string | null {
-  if (!url) return null;
-  try {
-    const favUrl = new URL(chrome.runtime.getURL("/_favicon/"));
-    favUrl.searchParams.set("pageUrl", url);
-    favUrl.searchParams.set("size", String(size));
-    return favUrl.toString();
-  } catch {
-    return null;
+function getFaviconUrl(
+  url?: string,
+  fallbackUrl?: string,
+  size = 32,
+): string | null {
+  if (url) {
+    try {
+      const favUrl = new URL(chrome.runtime.getURL("/_favicon/"));
+      favUrl.searchParams.set("pageUrl", url);
+      favUrl.searchParams.set("size", String(size));
+      return favUrl.toString();
+    } catch {
+      // Fall through to the raw favicon URL below.
+    }
   }
+  return fallbackUrl || null;
 }
 
 function createFocusGuard(onFocus: () => void): HTMLElement {
@@ -956,7 +962,10 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
 
       const faviconLarge = document.createElement("img");
       faviconLarge.className = "favicon-large";
-      faviconLarge.src = tab.favIconUrl || getFaviconUrl(tab.url) || "";
+      // Prefer the extension's own `_favicon` service (extension-origin, so the
+      // host page's CSP can't block it). Raw tab.favIconUrl is an external image
+      // that strict pages block, which is why icons loaded only "sometimes".
+      faviconLarge.src = getFaviconUrl(tab.url, tab.favIconUrl, 32) || "";
       faviconLarge.alt = "";
       faviconLarge.onerror = () => {
         faviconLarge.style.display = "none";
@@ -976,16 +985,18 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
     const tabHeader = document.createElement("div");
     tabHeader.className = "tab-header";
 
-    // In grid view the thumbnail shows a screenshot, so put a small favicon in
-    // front of the title (mirrors the main grid). In list view the favicon tile
-    // in the thumbnail already serves as the leading icon.
-    if (hasValidScreenshot) {
+    // Grid view: always show a small favicon in front of the title so every
+    // card has a consistent leading icon (previously only screenshot cards did,
+    // so favicon-tile cards showed a bare title). List view skips it because the
+    // favicon tile in the thumbnail already serves as the leading icon.
+    if (!isListView) {
       const headerFavicon = document.createElement("img");
       headerFavicon.className = "tab-favicon";
       headerFavicon.loading = "lazy";
       headerFavicon.decoding = "async";
       headerFavicon.alt = "";
-      const headerFaviconUrl = tab.favIconUrl || getFaviconUrl(tab.url, 16);
+      // CSP-safe `_favicon` service (size 16); falls back to tab.favIconUrl.
+      const headerFaviconUrl = getFaviconUrl(tab.url, tab.favIconUrl, 16);
       if (headerFaviconUrl) {
         headerFavicon.src = headerFaviconUrl;
         headerFavicon.onerror = () => {
