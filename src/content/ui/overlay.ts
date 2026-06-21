@@ -976,6 +976,27 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
     const tabHeader = document.createElement("div");
     tabHeader.className = "tab-header";
 
+    // In grid view the thumbnail shows a screenshot, so put a small favicon in
+    // front of the title (mirrors the main grid). In list view the favicon tile
+    // in the thumbnail already serves as the leading icon.
+    if (hasValidScreenshot) {
+      const headerFavicon = document.createElement("img");
+      headerFavicon.className = "tab-favicon";
+      headerFavicon.loading = "lazy";
+      headerFavicon.decoding = "async";
+      headerFavicon.alt = "";
+      const headerFaviconUrl = tab.favIconUrl || getFaviconUrl(tab.url, 16);
+      if (headerFaviconUrl) {
+        headerFavicon.src = headerFaviconUrl;
+        headerFavicon.onerror = () => {
+          headerFavicon.style.display = "none";
+        };
+      } else {
+        headerFavicon.style.display = "none";
+      }
+      tabHeader.appendChild(headerFavicon);
+    }
+
     const title = document.createElement("span");
     title.className = "tab-title";
     title.textContent = tab.title || "Untitled";
