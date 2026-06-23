@@ -21,24 +21,35 @@ type FlowPayload = {
 };
 
 function setupPopupLifecycle(closePopupWindowSoon: () => void): void {
+  let monitor: number | undefined;
+  const cleanupAndClose = () => {
+    if (monitor !== undefined) {
+      window.clearInterval(monitor);
+      monitor = undefined;
+    }
+    closePopupWindowSoon();
+  };
   // Close once focus moves to another tab/window.
-  window.addEventListener("blur", closePopupWindowSoon);
+  window.addEventListener("blur", cleanupAndClose);
 
   // Escape should close popup window as well as overlay.
   document.addEventListener(
     "keydown",
     (event) => {
       if (event.key === "Escape") {
-        closePopupWindowSoon();
+        cleanupAndClose();
       }
     },
     true,
   );
 
   // If the overlay is closed without blur, close popup shell too.
-  const monitor = window.setInterval(() => {
+  monitor = window.setInterval(() => {
     if (!state.isOverlayVisible && !state.isClosing) {
-      window.clearInterval(monitor);
+      if (monitor !== undefined) {
+        window.clearInterval(monitor);
+        monitor = undefined;
+      }
       closePopupWindowSoon();
     }
   }, 120);
