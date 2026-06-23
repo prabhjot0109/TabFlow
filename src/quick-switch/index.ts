@@ -7,7 +7,7 @@ import {
   showQuickSwitch,
   advanceQuickSwitchSelection,
 } from "../content/ui/overlay";
-import type { Tab } from "../shared/types";
+import type { Group, Tab } from "../shared/types";
 import {
   closePopupWindowSoon,
   getActiveTabId,
@@ -16,6 +16,7 @@ import {
 
 type QuickSwitchPayload = {
   tabs: Tab[];
+  groups: Group[];
   activeTabId: number | null;
 };
 
@@ -96,6 +97,7 @@ async function requestTabsFromBackground(): Promise<QuickSwitchPayload | null> {
 
     return {
       tabs: response.tabs as Tab[],
+      groups: (Array.isArray(response.groups) ? response.groups : []) as Group[],
       activeTabId: getActiveTabId(response.tabs as Tab[]),
     };
   } catch (error) {
@@ -106,7 +108,7 @@ async function requestTabsFromBackground(): Promise<QuickSwitchPayload | null> {
 
 function parseStoredQuickSwitchPayload(stored: unknown): QuickSwitchPayload | null {
   const quickSwitchState = stored as
-    | { tabs?: Tab[]; activeTabId?: number }
+    | { tabs?: Tab[]; groups?: Group[]; activeTabId?: number }
     | undefined;
 
   if (
@@ -119,6 +121,7 @@ function parseStoredQuickSwitchPayload(stored: unknown): QuickSwitchPayload | nu
 
   return {
     tabs: quickSwitchState.tabs,
+    groups: Array.isArray(quickSwitchState.groups) ? quickSwitchState.groups : [],
     activeTabId:
       typeof quickSwitchState.activeTabId === "number"
         ? quickSwitchState.activeTabId
@@ -137,7 +140,7 @@ async function initialize(): Promise<void> {
     isEmpty: (payload) => payload.tabs.length === 0,
     setupLifecycle: setupPopupLifecycle,
     render: async (payload) => {
-      await showQuickSwitch(payload.tabs, payload.activeTabId);
+      await showQuickSwitch(payload.tabs, payload.activeTabId, payload.groups);
     },
     cycleAction: {
       action: "QuickSwitchPopupCycleNext",

@@ -138,9 +138,12 @@ export async function buildFlowPayload(
 export async function buildQuickSwitchPayload(
   windowId: number,
   screenshotCache: LRUCache,
-): Promise<{ tabs: Tab[] }> {
-  const tabs = await buildTabsForWindow(windowId, screenshotCache, {
-    includeScreenshots: true,
-  });
-  return { tabs };
+): Promise<{ tabs: Tab[]; groups: Group[] }> {
+  const [tabs, groups] = await Promise.all([
+    buildTabsForWindow(windowId, screenshotCache, {
+      includeScreenshots: true,
+    }),
+    buildGroupsForWindow(windowId),
+  ]);
+  return { tabs, groups };
 }

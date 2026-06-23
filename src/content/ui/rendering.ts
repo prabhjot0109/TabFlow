@@ -873,7 +873,7 @@ export function activateSelectedHistoryItem() {
   closeOverlay();
 }
 
-function getGroupColor(colorName: string) {
+export function getGroupColor(colorName: string) {
   const colors: Record<string, string> = {
     grey: "#bdc1c6",
     blue: "#8ab4f8",
@@ -888,7 +888,7 @@ function getGroupColor(colorName: string) {
   return colors[colorName] || colorName;
 }
 
-function withAlpha(color: string, alphaHex: string): string {
+export function withAlpha(color: string, alphaHex: string): string {
   return /^#[0-9a-f]{6}$/i.test(color) ? `${color}${alphaHex}` : color;
 }
 

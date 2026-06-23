@@ -509,7 +509,7 @@ export async function handleMessage(
             return;
           }
 
-          const { tabs: tabsData } = await buildQuickSwitchPayload(
+          const { tabs: tabsData, groups: groupsData } = await buildQuickSwitchPayload(
             targetWindowId,
             screenshotCache,
           );
@@ -517,6 +517,7 @@ export async function handleMessage(
           sendResponse({
             success: true,
             tabs: tabsData,
+            groups: groupsData,
           });
         } catch (error: unknown) {
           console.error("[ERROR] Failed to get tabs for Quick Switch:", error);

@@ -121,6 +121,7 @@ let QuickSwitchPopupWindowId: number | null = null;
 
 async function openQuickSwitchPopup(
   tabsData: Tab[],
+  groupsData: Group[],
   activeTabId: number,
 ): Promise<void> {
   try {
@@ -155,6 +156,7 @@ async function openQuickSwitchPopup(
     await chrome.storage.session.set({
       QuickSwitchTabData: {
         tabs: tabsData,
+        groups: groupsData,
         activeTabId: activeTabId,
       },
     });
@@ -579,7 +581,7 @@ async function handleQuickSwitch(): Promise<void> {
       return;
     }
 
-    const { tabs: tabsData } = await buildQuickSwitchPayload(
+    const { tabs: tabsData, groups: groupsData } = await buildQuickSwitchPayload(
       currentWindow.id,
       screenshotCache,
     );
@@ -588,7 +590,7 @@ async function handleQuickSwitch(): Promise<void> {
     // quick-switch overlay behavior as injected pages.
     if (!screenshot.isTabCapturable(activeTab)) {
       console.log("[QUICK SWITCH] Protected page, opening popup window");
-      await openQuickSwitchPopup(tabsData, activeTab.id);
+      await openQuickSwitchPopup(tabsData, groupsData, activeTab.id);
       return;
     }
 
@@ -597,6 +599,7 @@ async function handleQuickSwitch(): Promise<void> {
       delivered = await sendMessageWithRetry(activeTab.id, {
         action: "showQuickSwitch",
         tabs: tabsData,
+        groups: groupsData,
         activeTabId: activeTab.id,
       });
     } catch (error) {
@@ -607,7 +610,7 @@ async function handleQuickSwitch(): Promise<void> {
       console.warn(
         "[INJECT] Content script unavailable. Falling back to popup window.",
       );
-      await openQuickSwitchPopup(tabsData, activeTab.id);
+      await openQuickSwitchPopup(tabsData, groupsData, activeTab.id);
       return;
     }
 
