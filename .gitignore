@@ -10,6 +10,7 @@ biome
 Thumbs.db
 .vscode/
 .idea/
+docs/
 
 # Logs
 *.log
