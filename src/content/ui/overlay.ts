@@ -16,6 +16,8 @@ import {
   renderTabsStandard,
   renderTabsVirtual,
   shouldUseVirtualRendering,
+  getGroupColor,
+  withAlpha,
 } from "./rendering";
 import { releaseTabPayloadState } from "../memory";
 import * as focus from "../input/focus";
@@ -942,6 +944,20 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
       index === state.selectedIndex ? "true" : "false"
     );
 
+    // Tab Groups Support
+    let groupColor: string | null = null;
+    let groupTitle: string | null = null;
+    if (tab.groupId && tab.groupId !== -1 && state.groups) {
+      const group = state.groups.find((g) => g.id === tab.groupId);
+      if (group) {
+        groupColor = getGroupColor(group.color);
+        groupTitle = group.title || "Group";
+        card.dataset.groupId = String(group.id);
+        card.style.borderLeft = `6px solid ${groupColor}`;
+        card.style.background = `linear-gradient(to right, ${withAlpha(groupColor, "1A")}, rgba(255,255,255,0.02))`;
+      }
+    }
+
     // Thumbnail area: real screenshot when we have one (grid view), otherwise a
     // favicon tile fallback.
     const thumbnail = document.createElement("div");
@@ -1014,6 +1030,17 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
     title.title = tab.title || "";
 
     tabHeader.appendChild(title);
+
+    // Group pill
+    if (groupColor && groupTitle) {
+      const pill = document.createElement("span");
+      pill.className = "group-pill";
+      pill.textContent = groupTitle;
+      pill.style.setProperty("--group-pill-color", groupColor);
+      pill.style.setProperty("--group-pill-bg", withAlpha(groupColor, "26"));
+      tabHeader.appendChild(pill);
+    }
+
     tabInfo.appendChild(tabHeader);
 
     // URL domain
@@ -1289,9 +1316,10 @@ function handleQuickSwitchKeyUp(e: KeyboardEvent) {
 
 export async function showQuickSwitch(
   tabs: Tab[],
-  activeTabId: number | null | undefined
+  activeTabId: number | null | undefined,
+  groups: Group[] = []
 ) {
-  console.log(`[Quick Switch] Opening with ${tabs.length} tabs`);
+  console.log(`[Quick Switch] Opening with ${tabs.length} tabs and ${groups.length} groups`);
 
   if (state.isQuickSwitchVisible) return;
 
@@ -1311,6 +1339,7 @@ export async function showQuickSwitch(
 
   state.isQuickSwitchVisible = true;
   state.quickSwitchTabs = tabs;
+  state.groups = groups;
   quickSwitchReadyTime = Date.now();
 
   // Start selection at the second tab (previous tab, like Alt+Tab)

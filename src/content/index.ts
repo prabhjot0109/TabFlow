@@ -166,7 +166,7 @@ chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
       sendResponse({ success: true, advanced: true });
       return true;
     }
-    showQuickSwitch(request.tabs, request.activeTabId);
+    showQuickSwitch(request.tabs, request.activeTabId, request.groups);
     sendResponse({ success: true });
   } else if (request.action === "quickSwitchCycleIfOpen") {
     if (!state.isQuickSwitchVisible) {
