@@ -1096,6 +1096,88 @@ export function advanceQuickSwitchSelection(step: number) {
   updateQuickSwitchSelection();
 }
 
+export function advanceQuickSwitchSelectionDown() {
+  if (!state.quickSwitchTabs || state.quickSwitchTabs.length === 0) return;
+
+  const total = state.quickSwitchTabs.length;
+  if (state.selectedIndex < 0) {
+    state.selectedIndex = 0;
+    updateQuickSwitchSelection();
+    return;
+  }
+  const columnCount = getQuickSwitchColumnCount();
+  let newIndex = state.selectedIndex + columnCount;
+  if (newIndex >= total) {
+    newIndex = state.selectedIndex % columnCount;
+  }
+  state.selectedIndex = newIndex;
+  updateQuickSwitchSelection();
+}
+
+export function advanceQuickSwitchSelectionUp() {
+  if (!state.quickSwitchTabs || state.quickSwitchTabs.length === 0) return;
+
+  const total = state.quickSwitchTabs.length;
+  if (state.selectedIndex < 0) {
+    state.selectedIndex = total - 1;
+    updateQuickSwitchSelection();
+    return;
+  }
+  const columnCount = getQuickSwitchColumnCount();
+  let newIndex = state.selectedIndex - columnCount;
+  if (newIndex < 0) {
+    const remainder = state.selectedIndex % columnCount;
+    let lastRowIndex = remainder;
+    while (lastRowIndex + columnCount < total) {
+      lastRowIndex += columnCount;
+    }
+    newIndex = lastRowIndex;
+  }
+  state.selectedIndex = newIndex;
+  updateQuickSwitchSelection();
+}
+
+function getQuickSwitchColumnCount(): number {
+  const grid = quickSwitchGrid;
+  if (!grid) return 1;
+
+  if (cachedQuickSwitchViewMode === "list" || grid.classList.contains("list-view")) {
+    return 1;
+  }
+
+  // Method 1: parse computed style of grid-template-columns
+  try {
+    const computedStyle = window.getComputedStyle(grid);
+    const gridTemplateColumns = computedStyle.getPropertyValue("grid-template-columns");
+    if (gridTemplateColumns) {
+      const columns = gridTemplateColumns.trim().split(/\s+/);
+      if (columns.length > 0) {
+        return columns.length;
+      }
+    }
+  } catch (err) {
+    console.error("Error computing quick switch columns from style:", err);
+  }
+
+  // Method 2: fallback to comparing children positions
+  try {
+    const children = Array.from(grid.children) as HTMLElement[];
+    if (children.length > 1) {
+      const firstTop = children[0].offsetTop;
+      for (let i = 1; i < children.length; i++) {
+        if (children[i].offsetTop > firstTop) {
+          return i;
+        }
+      }
+      return children.length; // all items are on the same row
+    }
+  } catch (err) {
+    console.error("Error computing quick switch columns from children:", err);
+  }
+
+  return 1;
+}
+
 export function closeQuickSwitch() {
   if (!state.isQuickSwitchVisible) return;
 
@@ -1129,13 +1211,25 @@ function handleQuickSwitchKeyDown(e: KeyboardEvent) {
   }
 
   // Arrow navigation
-  if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    advanceQuickSwitchSelectionDown();
+    return;
+  }
+
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    advanceQuickSwitchSelectionUp();
+    return;
+  }
+
+  if (e.key === "ArrowRight") {
     e.preventDefault();
     advanceQuickSwitchSelection(1);
     return;
   }
 
-  if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+  if (e.key === "ArrowLeft") {
     e.preventDefault();
     advanceQuickSwitchSelection(-1);
     return;

@@ -299,12 +299,12 @@ export function handleKeyDown(e: KeyboardEvent) {
 
       case "ArrowDown":
         e.preventDefault();
-        selectNext();
+        selectDown();
         break;
 
       case "ArrowUp":
         e.preventDefault();
-        selectPrevious();
+        selectUp();
         break;
 
       case "Delete":
@@ -508,14 +508,14 @@ export function handleSearchKeydown(e: KeyboardEvent) {
     // Arrow Down: Move to next item
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      selectNext();
+      selectDown();
       return;
     }
 
     // Arrow Up: Move to previous item
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      selectPrevious();
+      selectUp();
       return;
     }
 
@@ -590,5 +590,89 @@ function selectRight() {
 
 function selectLeft() {
   selectPrevious();
+}
+
+// 2D navigation - down in grid
+export function selectDown() {
+  if (!state.filteredTabs || state.filteredTabs.length === 0) return;
+  if (state.selectedIndex < 0) {
+    state.selectedIndex = 0;
+    updateSelection();
+    return;
+  }
+  const columnCount = getColumnCount();
+  let newIndex = state.selectedIndex + columnCount;
+  if (newIndex >= state.filteredTabs.length) {
+    newIndex = state.selectedIndex % columnCount;
+  }
+  state.selectedIndex = newIndex;
+  updateSelection();
+}
+
+// 2D navigation - up in grid
+export function selectUp() {
+  if (!state.filteredTabs || state.filteredTabs.length === 0) return;
+  if (state.selectedIndex < 0) {
+    state.selectedIndex = state.filteredTabs.length - 1;
+    updateSelection();
+    return;
+  }
+  const columnCount = getColumnCount();
+  let newIndex = state.selectedIndex - columnCount;
+  if (newIndex < 0) {
+    const remainder = state.selectedIndex % columnCount;
+    let lastRowIndex = remainder;
+    while (lastRowIndex + columnCount < state.filteredTabs.length) {
+      lastRowIndex += columnCount;
+    }
+    newIndex = lastRowIndex;
+  }
+  state.selectedIndex = newIndex;
+  updateSelection();
+}
+
+function getColumnCount(): number {
+  const grid = state.domCache.grid;
+  if (!grid) return 1;
+
+  if (
+    grid.classList.contains("list-view") ||
+    grid.classList.contains("search-mode") ||
+    grid.classList.contains("recent-mode")
+  ) {
+    return 1;
+  }
+
+  // Method 1: parse computed style of grid-template-columns
+  try {
+    const computedStyle = window.getComputedStyle(grid);
+    const gridTemplateColumns = computedStyle.getPropertyValue("grid-template-columns");
+    if (gridTemplateColumns) {
+      const columns = gridTemplateColumns.trim().split(/\s+/);
+      if (columns.length > 0) {
+        return columns.length;
+      }
+    }
+  } catch (err) {
+    console.error("Error computing columns from style:", err);
+  }
+
+  // Method 2: fallback to comparing children positions
+  try {
+    const children = Array.from(grid.children) as HTMLElement[];
+    if (children.length > 1) {
+      const firstTop = children[0].offsetTop;
+      for (let i = 1; i < children.length; i++) {
+        if (children[i].offsetTop > firstTop) {
+          return i;
+        }
+      }
+      return children.length; // all items are on the same row
+    }
+  } catch (err) {
+    console.error("Error computing columns from children:", err);
+  }
+
+  return 1;
 }
 
