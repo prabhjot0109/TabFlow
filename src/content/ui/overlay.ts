@@ -1001,11 +1001,12 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
     const tabHeader = document.createElement("div");
     tabHeader.className = "tab-header";
 
-    // Grid view: always show a small favicon in front of the title so every
-    // card has a consistent leading icon (previously only screenshot cards did,
-    // so favicon-tile cards showed a bare title). List view skips it because the
-    // favicon tile in the thumbnail already serves as the leading icon.
-    if (!isListView) {
+    // Show a small favicon in front of the title only when the thumbnail is
+    // showing a screenshot. When the thumbnail shows a favicon tile (no
+    // screenshot available), the favicon is already visible there — adding
+    // another one in the header would duplicate it. List view always skips
+    // it because the favicon tile in the thumbnail is the leading icon.
+    if (!isListView && hasValidScreenshot) {
       const headerFavicon = document.createElement("img");
       headerFavicon.className = "tab-favicon";
       headerFavicon.loading = "lazy";
