@@ -215,6 +215,9 @@ export function renderTabsStandard(tabs: Tab[]) {
   // Apply FLIP transitions
   applyGridFLIP(grid, captured);
 
+  // Load screenshots deferred beyond the initial ±10 window
+  setupIntersectionObserver();
+
   const duration = performance.now() - startTime;
   log(`[PERF] Rendered ${tabs.length} tabs in ${duration.toFixed(2)}ms`);
 }

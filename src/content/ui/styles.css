@@ -71,7 +71,7 @@
     rgba(255, 255, 255, 0.02) 22%,
     rgba(255, 255, 255, 0) 48%
   );
-  --glass-filter: blur(8px) saturate(150%);
+  --glass-filter: blur(6px) saturate(130%);
   --glass-shadow:
     0 32px 80px rgba(0, 0, 0, 0.45),
     inset 0 1px 1px rgba(255, 255, 255, 0.30),
@@ -146,7 +146,7 @@
       rgba(255, 255, 255, 0.18) 22%,
       rgba(255, 255, 255, 0) 50%
     );
-    --glass-filter: blur(8px) saturate(150%);
+    --glass-filter: blur(6px) saturate(130%);
     --glass-shadow:
       0 24px 64px rgba(0, 0, 0, 0.16),
       inset 0 1px 1px rgba(255, 255, 255, 0.85),

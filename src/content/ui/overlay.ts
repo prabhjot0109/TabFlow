@@ -967,8 +967,7 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
       const img = document.createElement("img");
       img.className = "screenshot-img";
       img.alt = tab.title || "";
-      img.loading = "lazy";
-      img.decoding = "async";
+      // Screenshots are in-memory data URLs — eager loading renders them immediately.
       img.src = screenshot;
       thumbnail.appendChild(img);
     } else {

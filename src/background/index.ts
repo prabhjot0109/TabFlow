@@ -197,10 +197,12 @@ async function openQuickSwitchPopup(
 
 async function tryCycleOpenQuickSwitchOverlay(tabId: number): Promise<boolean> {
   try {
-    const response = await chrome.tabs.sendMessage(tabId, {
-      action: "quickSwitchCycleIfOpen",
-    });
-    return !!response?.advanced;
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 80));
+    const response = await Promise.race([
+      chrome.tabs.sendMessage(tabId, { action: "quickSwitchCycleIfOpen" }),
+      timeout,
+    ]);
+    return !!(response as { advanced?: boolean } | null)?.advanced;
   } catch {
     return false;
   }
@@ -390,10 +392,20 @@ if (typeof chrome !== "undefined" && chrome.commands) {
 
 // Handle showing the Tab Flow - OPTIMIZED FOR <100ms
 async function handleShowTabFlow(): Promise<void> {
-  // Ensure cache and recent order are restored
-  if (screenshotCache.ready) await screenshotCache.ready;
+  // Ensure cache is ready — cap the wait so a slow IndexedDB can't hang startup.
+  if (screenshotCache.ready) {
+    await Promise.race([
+      screenshotCache.ready,
+      new Promise<void>((resolve) => setTimeout(resolve, 300)),
+    ]);
+  }
+  // Restore recent tab order in the background; don't block the overlay on it.
+  // Tabs will fall back to Chrome's lastAccessed ordering if restoration is still
+  // in progress when buildFlowPayload runs — same behaviour as Quick Switch.
   if (!tabTracker.isRecentOrderRestored()) {
-    await tabTracker.restoreRecentOrder();
+    tabTracker.restoreRecentOrder().catch((err) => {
+      console.debug("[TAB FLOW] Failed to restore recent order:", err);
+    });
   }
 
   const startTime = performance.now();
