@@ -415,6 +415,19 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
 // COMMAND HANDLER
 // ============================================================================
 
+// Broad host access is what turns previews from "the tab you invoked from"
+// into "every tab", but it cannot be requested from here — that needs a user
+// gesture. Open the options page once on install so the toggle is the first
+// thing a new user sees, rather than something they find months later.
+if (typeof chrome !== "undefined" && chrome.runtime?.onInstalled) {
+  chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason !== "install") return;
+    chrome.runtime.openOptionsPage().catch((error) => {
+      console.debug("[INIT] Could not open options page on install:", error);
+    });
+  });
+}
+
 if (typeof chrome !== "undefined" && chrome.commands) {
   chrome.commands.onCommand.addListener((command) => {
     if (command === "show-tab-flow" || command === "cycle-next-tab") {
