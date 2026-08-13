@@ -12,6 +12,7 @@ import {
   createGroup,
 } from "../actions";
 import {
+  countGridColumns,
   updateSelection,
   updateHistorySelection,
   activateSelectedHistoryItem,
@@ -632,46 +633,13 @@ export function selectUp() {
 
 function getColumnCount(): number {
   const grid = state.domCache.grid;
-  if (!grid) return 1;
-
-  if (
-    grid.classList.contains("list-view") ||
-    grid.classList.contains("search-mode") ||
-    grid.classList.contains("recent-mode")
-  ) {
-    return 1;
-  }
-
-  // Method 1: parse computed style of grid-template-columns
-  try {
-    const computedStyle = window.getComputedStyle(grid);
-    const gridTemplateColumns = computedStyle.getPropertyValue("grid-template-columns");
-    if (gridTemplateColumns) {
-      const columns = gridTemplateColumns.trim().split(/\s+/);
-      if (columns.length > 0) {
-        return columns.length;
-      }
-    }
-  } catch (err) {
-    console.error("Error computing columns from style:", err);
-  }
-
-  // Method 2: fallback to comparing children positions
-  try {
-    const children = Array.from(grid.children) as HTMLElement[];
-    if (children.length > 1) {
-      const firstTop = children[0].offsetTop;
-      for (let i = 1; i < children.length; i++) {
-        if (children[i].offsetTop > firstTop) {
-          return i;
-        }
-      }
-      return children.length; // all items are on the same row
-    }
-  } catch (err) {
-    console.error("Error computing columns from children:", err);
-  }
-
-  return 1;
+  return countGridColumns(
+    grid,
+    Boolean(
+      grid?.classList.contains("list-view") ||
+        grid?.classList.contains("search-mode") ||
+        grid?.classList.contains("recent-mode"),
+    ),
+  );
 }
 

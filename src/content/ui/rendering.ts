@@ -50,6 +50,45 @@ export function shouldUseVirtualRendering(tabCount: number): boolean {
   return tabCount > VIRTUAL_RENDER_THRESHOLD && isListLayout();
 }
 
+// How many cards sit on one row, for grid arrow-key navigation. Shared by the
+// main overlay and Quick Switch, which each own a different grid element.
+export function countGridColumns(
+  grid: HTMLElement | null,
+  isSingleColumn: boolean,
+): number {
+  if (!grid) return 1;
+  if (isSingleColumn) return 1;
+
+  // The computed value resolves the auto-fill track list to real columns.
+  try {
+    const template = window
+      .getComputedStyle(grid)
+      .getPropertyValue("grid-template-columns")
+      .trim();
+    if (template && template !== "none") {
+      return Math.max(1, template.split(/\s+/).length);
+    }
+  } catch {
+    // Fall through to measuring.
+  }
+
+  // Fallback: the first card whose top edge differs starts row two.
+  try {
+    const children = Array.from(grid.children) as HTMLElement[];
+    if (children.length > 1) {
+      const firstTop = children[0].offsetTop;
+      for (let i = 1; i < children.length; i++) {
+        if (children[i].offsetTop > firstTop) return i;
+      }
+      return children.length; // Everything is on one row.
+    }
+  } catch {
+    // Fall through to the single-column default.
+  }
+
+  return 1;
+}
+
 function hostnameOf(url: string): string {
   try {
     return new URL(url).hostname;

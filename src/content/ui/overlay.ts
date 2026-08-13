@@ -13,6 +13,7 @@ import {
   handleKeyUp,
 } from "../input/keyboard";
 import {
+  countGridColumns,
   createTabCard,
   renderTabsStandard,
   renderTabsVirtual,
@@ -1048,44 +1049,11 @@ export function advanceQuickSwitchSelectionUp() {
 }
 
 function getQuickSwitchColumnCount(): number {
-  const grid = quickSwitchGrid;
-  if (!grid) return 1;
-
-  if (cachedQuickSwitchViewMode === "list" || grid.classList.contains("list-view")) {
-    return 1;
-  }
-
-  // Method 1: parse computed style of grid-template-columns
-  try {
-    const computedStyle = window.getComputedStyle(grid);
-    const gridTemplateColumns = computedStyle.getPropertyValue("grid-template-columns");
-    if (gridTemplateColumns) {
-      const columns = gridTemplateColumns.trim().split(/\s+/);
-      if (columns.length > 0) {
-        return columns.length;
-      }
-    }
-  } catch (err) {
-    console.error("Error computing quick switch columns from style:", err);
-  }
-
-  // Method 2: fallback to comparing children positions
-  try {
-    const children = Array.from(grid.children) as HTMLElement[];
-    if (children.length > 1) {
-      const firstTop = children[0].offsetTop;
-      for (let i = 1; i < children.length; i++) {
-        if (children[i].offsetTop > firstTop) {
-          return i;
-        }
-      }
-      return children.length; // all items are on the same row
-    }
-  } catch (err) {
-    console.error("Error computing quick switch columns from children:", err);
-  }
-
-  return 1;
+  return countGridColumns(
+    quickSwitchGrid,
+    cachedQuickSwitchViewMode === "list" ||
+      Boolean(quickSwitchGrid?.classList.contains("list-view")),
+  );
 }
 
 export function closeQuickSwitch() {
