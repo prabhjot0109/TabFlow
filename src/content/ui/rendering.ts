@@ -50,6 +50,14 @@ export function shouldUseVirtualRendering(tabCount: number): boolean {
   return tabCount > VIRTUAL_RENDER_THRESHOLD && isListLayout();
 }
 
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 // ============================================================================
 // TAB CARD TEMPLATE (Performance Optimization)
 // Template cloning is ~3x faster than creating elements individually
@@ -321,7 +329,28 @@ export function renderTabsVirtual(tabs: Tab[]) {
 // ============================================================================
 // CREATE TAB CARD (Template-based for ~3x faster rendering)
 // ============================================================================
-export function createTabCard(tab: Tab, index: number): HTMLElement {
+export interface TabCardOptions {
+  // Quick Switch renders into its own grid, so it cannot infer list mode from
+  // the main overlay's grid element. Omit to infer.
+  listView?: boolean;
+  // Quick Switch is a commit-on-release gesture with no per-card actions.
+  showControls?: boolean;
+  // Quick Switch marks the tab you're currently on; the main overlay does not.
+  markCurrent?: boolean;
+  // Quick Switch shows just the hostname, the main overlay the full URL.
+  urlDisplay?: "full" | "hostname";
+}
+
+export function createTabCard(
+  tab: Tab,
+  index: number,
+  options: TabCardOptions = {},
+): HTMLElement {
+  const {
+    showControls = true,
+    markCurrent = false,
+    urlDisplay = "full",
+  } = options;
   // Clone template (much faster than creating elements individually)
   const fragment = TAB_CARD_TEMPLATE.content.cloneNode(
     true
@@ -355,7 +384,9 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
     typeof tab.screenshot === "string" && tab.screenshot.length > 0
       ? tab.screenshot
       : null;
-  const isListView = Boolean(state.domCache.grid?.classList.contains("list-view"));
+  const isListView =
+    options.listView ??
+    Boolean(state.domCache.grid?.classList.contains("list-view"));
   const hasValidScreenshot = Boolean(screenshot) && !isListView;
 
   // Add classes efficiently
@@ -364,6 +395,7 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
   if (index === state.selectedIndex) classList.add("selected");
   if (tab.pinned) classList.add("pinned");
   if (tab.sessionId) classList.add("recent-item");
+  if (markCurrent && tab.active) classList.add("current-tab");
 
   // Tab Groups Support
   let groupColor: string | null = null;
@@ -414,7 +446,8 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
     thumbnail.appendChild(img);
   }
 
-  // Header favicon (only for screenshots)
+  // Header favicon only when the thumbnail is showing a screenshot — otherwise
+  // the favicon tile already is the icon, and a second copy just duplicates it.
   if (hasValidScreenshot) {
     const faviconUrl = getFaviconUrl(tab.url, tab.favIconUrl, 16);
     if (faviconUrl) {
@@ -424,8 +457,13 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
         faviconEl.style.display = "none";
       };
     }
+  }
 
-    // Show URL
+  if (urlDisplay === "hostname") {
+    urlEl.textContent = hostnameOf(tabUrl);
+    urlEl.title = tabUrl;
+    urlEl.style.display = "";
+  } else if (hasValidScreenshot) {
     urlEl.textContent = tabUrl;
     urlEl.title = tabUrl;
     urlEl.style.display = "";
@@ -443,7 +481,7 @@ export function createTabCard(tab: Tab, index: number): HTMLElement {
   }
 
   // Media controls - create buttons dynamically with DOM API (no innerHTML for security)
-  if (!tab.sessionId && !tab.isWebSearch) {
+  if (showControls && !tab.sessionId && !tab.isWebSearch) {
     const isPlaying = getEffectivePlaybackState(tab);
     const isAudible = Boolean(tab.audible);
     const isMuted = Boolean(tab.mutedInfo?.muted);
@@ -585,7 +623,10 @@ export function updateSelection() {
   }
 }
 
-export function setupIntersectionObserver() {
+// `grid` defaults to the main overlay's grid. Quick Switch passes its own,
+// since it renders into a separate element — without this its cards past the
+// eager window would keep data-src forever and never show their screenshot.
+export function setupIntersectionObserver(gridOverride?: HTMLElement) {
   if (state.intersectionObserver) {
     state.intersectionObserver.disconnect();
   }
@@ -612,7 +653,7 @@ export function setupIntersectionObserver() {
   state.intersectionObserver = observer;
 
   // Observe all lazy-load images
-  const grid = state.domCache.grid;
+  const grid = gridOverride ?? state.domCache.grid;
   if (!grid) return;
 
   const images = grid.querySelectorAll("img[data-src]");

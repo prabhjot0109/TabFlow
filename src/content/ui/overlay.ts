@@ -13,11 +13,11 @@ import {
   handleKeyUp,
 } from "../input/keyboard";
 import {
+  createTabCard,
   renderTabsStandard,
   renderTabsVirtual,
+  setupIntersectionObserver,
   shouldUseVirtualRendering,
-  getGroupColor,
-  withAlpha,
 } from "./rendering";
 import { releaseTabPayloadState } from "../memory";
 import * as focus from "../input/focus";
@@ -101,24 +101,6 @@ function createKbd(text: string): HTMLElement {
   const kbd = document.createElement("kbd");
   kbd.textContent = text;
   return kbd;
-}
-
-function getFaviconUrl(
-  url?: string,
-  fallbackUrl?: string,
-  size = 32,
-): string | null {
-  if (url) {
-    try {
-      const favUrl = new URL(chrome.runtime.getURL("/_favicon/"));
-      favUrl.searchParams.set("pageUrl", url);
-      favUrl.searchParams.set("size", String(size));
-      return favUrl.toString();
-    } catch {
-      // Fall through to the raw favicon URL below.
-    }
-  }
-  return fallbackUrl || null;
 }
 
 function createFocusGuard(onFocus: () => void): HTMLElement {
@@ -929,147 +911,25 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
   if (!quickSwitchGrid) return;
 
   const grid = quickSwitchGrid;
-  grid.innerHTML = "";
+  grid.textContent = "";
   quickSwitchCards = [];
   quickSwitchLastSelectedIndex = -1;
   const fragment = document.createDocumentFragment();
 
-  const isListView = cachedQuickSwitchViewMode === "list";
-
   tabs.forEach((tab, index) => {
-    const screenshot =
-      typeof tab.screenshot === "string" && tab.screenshot.length > 0
-        ? tab.screenshot
-        : null;
-    // Screenshots are only shown in grid view (list view is a compact row).
-    const hasValidScreenshot = Boolean(screenshot) && !isListView;
+    // Same card builder the main overlay uses. These two used to be separate
+    // ~150-line implementations that drifted apart — the favicons in this grid
+    // were fixed once already because of it.
+    const card = createTabCard(tab, index, {
+      // Quick Switch owns its own grid, so list mode cannot be inferred from
+      // the main overlay's.
+      listView: cachedQuickSwitchViewMode === "list",
+      // Commit-on-release gesture: no per-card close or media buttons.
+      showControls: false,
+      markCurrent: true,
+      urlDisplay: "hostname",
+    });
 
-    const card = document.createElement("div");
-    card.className = `tab-card ${hasValidScreenshot ? "has-screenshot" : "has-favicon"
-      }${index === state.selectedIndex ? " selected" : ""}${tab.active ? " current-tab" : ""
-      }`;
-    card.dataset.tabId = String(tab.id);
-    card.dataset.tabIndex = String(index);
-    card.setAttribute("role", "option");
-    card.setAttribute(
-      "aria-selected",
-      index === state.selectedIndex ? "true" : "false"
-    );
-
-    // Tab Groups Support
-    let groupColor: string | null = null;
-    let groupTitle: string | null = null;
-    if (tab.groupId && tab.groupId !== -1 && state.groups) {
-      const group = state.groups.find((g) => g.id === tab.groupId);
-      if (group) {
-        groupColor = getGroupColor(group.color);
-        groupTitle = group.title || "Group";
-        card.dataset.groupId = String(group.id);
-        card.style.borderLeft = `6px solid ${groupColor}`;
-        card.style.background = `linear-gradient(to right, ${withAlpha(groupColor, "1A")}, rgba(255,255,255,0.02))`;
-      }
-    }
-
-    // Thumbnail area: real screenshot when we have one (grid view), otherwise a
-    // favicon tile fallback.
-    const thumbnail = document.createElement("div");
-    thumbnail.className = "tab-thumbnail";
-
-    if (hasValidScreenshot && screenshot) {
-      const img = document.createElement("img");
-      img.className = "screenshot-img";
-      img.alt = tab.title || "";
-      // Screenshots are in-memory data URLs — eager loading renders them immediately.
-      img.src = screenshot;
-      thumbnail.appendChild(img);
-    } else {
-      // Favicon tile (shown in thumbnail area for grid view)
-      const faviconTile = document.createElement("div");
-      faviconTile.className = "favicon-tile";
-
-      const faviconLarge = document.createElement("img");
-      faviconLarge.className = "favicon-large";
-      // Prefer the extension's own `_favicon` service (extension-origin, so the
-      // host page's CSP can't block it). Raw tab.favIconUrl is an external image
-      // that strict pages block, which is why icons loaded only "sometimes".
-      faviconLarge.src = getFaviconUrl(tab.url, tab.favIconUrl, 32) || "";
-      faviconLarge.alt = "";
-      faviconLarge.onerror = () => {
-        faviconLarge.style.display = "none";
-        const letter = document.createElement("div");
-        letter.className = "favicon-letter";
-        letter.textContent = (tab.title || "?")[0].toUpperCase();
-        faviconTile.appendChild(letter);
-      };
-      faviconTile.appendChild(faviconLarge);
-      thumbnail.appendChild(faviconTile);
-    }
-
-    // Tab info section
-    const tabInfo = document.createElement("div");
-    tabInfo.className = "tab-info";
-
-    const tabHeader = document.createElement("div");
-    tabHeader.className = "tab-header";
-
-    // Show a small favicon in front of the title only when the thumbnail is
-    // showing a screenshot. When the thumbnail shows a favicon tile (no
-    // screenshot available), the favicon is already visible there — adding
-    // another one in the header would duplicate it. List view always skips
-    // it because the favicon tile in the thumbnail is the leading icon.
-    if (!isListView && hasValidScreenshot) {
-      const headerFavicon = document.createElement("img");
-      headerFavicon.className = "tab-favicon";
-      headerFavicon.loading = "lazy";
-      headerFavicon.decoding = "async";
-      headerFavicon.alt = "";
-      // CSP-safe `_favicon` service (size 16); falls back to tab.favIconUrl.
-      const headerFaviconUrl = getFaviconUrl(tab.url, tab.favIconUrl, 16);
-      if (headerFaviconUrl) {
-        headerFavicon.src = headerFaviconUrl;
-        headerFavicon.onerror = () => {
-          headerFavicon.style.display = "none";
-        };
-      } else {
-        headerFavicon.style.display = "none";
-      }
-      tabHeader.appendChild(headerFavicon);
-    }
-
-    const title = document.createElement("span");
-    title.className = "tab-title";
-    title.textContent = tab.title || "Untitled";
-    title.title = tab.title || "";
-
-    tabHeader.appendChild(title);
-
-    // Group pill
-    if (groupColor && groupTitle) {
-      const pill = document.createElement("span");
-      pill.className = "group-pill";
-      pill.textContent = groupTitle;
-      pill.style.setProperty("--group-pill-color", groupColor);
-      pill.style.setProperty("--group-pill-bg", withAlpha(groupColor, "26"));
-      tabHeader.appendChild(pill);
-    }
-
-    tabInfo.appendChild(tabHeader);
-
-    // URL domain
-    const domain = document.createElement("span");
-    domain.className = "tab-url";
-    try {
-      domain.textContent = new URL(tab.url || "").hostname;
-    } catch {
-      domain.textContent = "";
-    }
-    tabInfo.appendChild(domain);
-
-    // Add elements to card
-    card.appendChild(thumbnail);
-    card.appendChild(tabInfo);
-
-    // Click to switch
     card.addEventListener("click", () => {
       if (tab.id) {
         chrome.runtime.sendMessage({ action: "switchToTab", tabId: tab.id });
@@ -1083,10 +943,11 @@ function renderQuickSwitchTabs(tabs: Tab[]) {
 
   grid.appendChild(fragment);
   syncPanelDensity(
-    quickSwitchGrid?.closest(".tab-flow-container") as HTMLElement | null,
-    quickSwitchGrid,
+    grid.closest(".tab-flow-container") as HTMLElement | null,
+    grid,
     tabs.length,
   );
+  setupIntersectionObserver(grid);
   updateQuickSwitchSelection(true);
 }
 
@@ -1222,6 +1083,12 @@ export function closeQuickSwitch() {
 
   state.isQuickSwitchVisible = false;
   focus.unlockPageInteraction();
+
+  if (state.intersectionObserver) {
+    state.intersectionObserver.disconnect();
+    state.intersectionObserver = null;
+  }
+
   clearQuickSwitchRenderedTabs();
   releaseTabPayloadState(state);
   quickSwitchReadyTime = 0;
