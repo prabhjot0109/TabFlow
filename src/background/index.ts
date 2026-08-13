@@ -247,8 +247,8 @@ async function initialize(): Promise<void> {
 // Capture the tab the user just invoked the switcher from. A keyboard command
 // (or action click) grants `activeTab` for the current tab, which is all
 // `captureVisibleTab` needs — no broad host permission required. This is the
-// only place captures originate: previews are refreshed when you open the
-// switcher while on a tab, never silently in the background.
+// capture that always runs; the activation capture below only runs once the
+// user has opted into broad host access.
 //
 // The capture is awaited and taken with `immediate` (no settle delay) so it
 // happens BEFORE the overlay is drawn over the page — otherwise the screenshot
@@ -276,6 +276,22 @@ const ACTIVATION_CAPTURE_DELAY = 400;
 let activationCaptureTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingActivationTabId: number | null = null;
 
+// Bumped every time the switcher is invoked. An activation capture queued just
+// beforehand must not go through once the overlay is on screen, or it
+// photographs our own UI and files it as that tab's preview. Cancelling the
+// timer is not enough on its own: a capture already in flight can spend over a
+// second waiting for a slot, so it re-checks this before taking the shot.
+let invocationEpoch = 0;
+
+function beginInvocation(): void {
+  invocationEpoch++;
+  if (activationCaptureTimer) {
+    clearTimeout(activationCaptureTimer);
+    activationCaptureTimer = null;
+  }
+  pendingActivationTabId = null;
+}
+
 function scheduleActivationCapture(tabId: number): void {
   if (!hasBroadHostAccessSync()) return;
 
@@ -293,6 +309,8 @@ function scheduleActivationCapture(tabId: number): void {
 }
 
 async function captureActivatedTab(tabId: number): Promise<void> {
+  const epoch = invocationEpoch;
+
   try {
     const tab = await chrome.tabs.get(tabId);
     if (!tab.active || !screenshot.isTabCapturable(tab)) return;
@@ -302,7 +320,9 @@ async function captureActivatedTab(tabId: number): Promise<void> {
       return;
     }
 
-    await screenshot.captureTabScreenshot(tabId, screenshotCache);
+    await screenshot.captureTabScreenshot(tabId, screenshotCache, null, {
+      shouldAbort: () => epoch !== invocationEpoch,
+    });
   } catch (error) {
     console.debug("[CAPTURE] Activation capture skipped:", error);
   }
@@ -440,6 +460,8 @@ if (typeof chrome !== "undefined" && chrome.commands) {
 
 // Handle showing the Tab Flow - OPTIMIZED FOR <100ms
 async function handleShowTabFlow(): Promise<void> {
+  beginInvocation();
+
   // Ensure cache is ready — cap the wait so a slow IndexedDB can't hang startup.
   if (screenshotCache.ready) {
     await Promise.race([
@@ -540,6 +562,8 @@ async function handleShowTabFlow(): Promise<void> {
 
 // Handle Quick Switch (Alt+Q) - Alt+Tab style switching without search
 async function handleQuickSwitch(): Promise<void> {
+  beginInvocation();
+
   // FAST PATH: If Quick Switch popup already exists, cycle selection and return
   if (QuickSwitchPopupWindowId !== null) {
     try {

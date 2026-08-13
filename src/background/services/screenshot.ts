@@ -143,6 +143,9 @@ type CaptureOptions = {
   // where the page is already fully rendered (the user was just looking at it),
   // so the screenshot can be taken right away — before the overlay is drawn.
   immediate?: boolean;
+  // Consulted after queuing for a capture slot, immediately before the shot.
+  // Queuing can take over a second, and the world can change in that time.
+  shouldAbort?: () => boolean;
 };
 
 export async function captureTabScreenshot(
@@ -208,6 +211,11 @@ export async function captureTabScreenshot(
       .catch(() => false);
     if (!stillActive) {
       console.debug(`[CAPTURE] Tab ${tabId} left the foreground while queued`);
+      return null;
+    }
+
+    if (options.shouldAbort?.()) {
+      console.debug(`[CAPTURE] Tab ${tabId} capture abandoned while queued`);
       return null;
     }
 

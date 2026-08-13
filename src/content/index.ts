@@ -212,6 +212,9 @@ const INJECTION_FLAG = "__tabFlowContentScriptLoaded";
 const injectionScope = window as unknown as Record<string, boolean | undefined>;
 
 if (!injectionScope[INJECTION_FLAG]) {
-  injectionScope[INJECTION_FLAG] = true;
+  // Flag after initialising, not before: if this throws part way the tab has
+  // no working message listener, and a later injection retrying is far better
+  // than a flag that permanently blocks recovery.
   initializeContentScript();
+  injectionScope[INJECTION_FLAG] = true;
 }
