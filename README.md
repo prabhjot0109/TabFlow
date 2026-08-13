@@ -19,20 +19,14 @@
   <img src="./preview.png" alt="Tab Flow in action — visual tab switcher overlay with thumbnails and search" width="720" />
 </p>
 
----
-
-We've all been there. Thirty-seven tabs open across three windows. One of them has that Stack Overflow answer you _just_ read ten minutes ago, but the tab bar has become a wall of indistinguishable favicons. You click through five or six tabs, lose your train of thought, and end up Googling the same thing again.
-
-Browsers give you a tab bar. Tab Flow gives you a way to actually _use_ it.
-
 ## What Tab Flow Does
 
 Tab Flow replaces the painfully slow "hunt and click" ritual with two keyboard-first experiences:
 
-| Mode | Shortcut | What it feels like |
-| --- | --- | --- |
-| **Quick Switch** | `Alt + Q` | Windows Alt+Tab, but for browser tabs. Hold Alt, tap Q to cycle, release Alt to land. Zero typing. |
-| **Tab Flow** | `Alt + W` | A full overlay with live thumbnails, fuzzy search, media controls, tab history, web search, and more. |
+| Mode             | Shortcut  | What it feels like                                                                                    |
+| ---------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| **Quick Switch** | `Alt + Q` | Windows Alt+Tab, but for browser tabs. Hold Alt, tap Q to cycle, release Alt to land. Zero typing.    |
+| **Tab Flow**     | `Alt + W` | A full overlay with live thumbnails, fuzzy search, media controls, tab history, web search, and more. |
 
 Both modes open in **under 100 ms**, with real screenshot previews instead of a wall of identical favicons — no more guessing which "Untitled Document" is the right one.
 
@@ -51,10 +45,6 @@ Press `Alt + Q` and Tab Flow shows a compact grid of your most recently used tab
 ### 🖼️ Live Thumbnail Previews
 
 Tabs show real screenshots — in both **Tab Flow** (`Alt + W`) and **Quick Switch** (`Alt + Q`). No generic icons, no text-only lists. You can visually scan for the page you want the same way you'd flip through papers on a desk.
-
-Out of the box, previews are captured using the `activeTab` permission — Tab Flow grabs a screenshot of the tab you're on at the moment you open the switcher. So a tab gets its preview the first time you open the switcher while on it, and it's refreshed each time after. Tabs you haven't opened the switcher from yet show clean favicon cards until then. The upside: **no "read and change data on all sites" permission at install**, and Tab Flow never captures or touches a page in the background.
-
-If you'd rather have a preview for every tab, the options page has an opt-in **Full Previews & Media Control** toggle. Granting it lets Tab Flow snapshot each tab as you switch to it, so coverage fills in as you browse — and it's what makes play/pause work on tabs you haven't opened the switcher from. It's off by default and you can revoke it at any time. Screenshots stay in local storage either way.
 
 ### 🔊 Media Controls
 
@@ -91,6 +81,7 @@ Chrome blocks extensions from injecting content on `chrome://` pages, the New Ta
 ### ⚙️ Configurable Settings
 
 Open the options page to fine-tune:
+
 - **Screenshot quality** — choose between Performance, Normal, or High
 - **Cache limits** — control how many tabs and how many megabytes of screenshots are stored
 - **Default view** — choose Grid or List layout for both Tab Flow and Quick Switch
@@ -102,33 +93,33 @@ Open the options page to fine-tune:
 
 ### Inside Tab Flow (`Alt + W`)
 
-| Key | Action |
-| --- | --- |
-| `↑` / `↓` / `←` / `→` | Navigate through tabs |
-| `Enter` | Switch to the selected tab |
-| `Delete` | Close the selected tab |
-| `` ` `` | Duplicate the selected tab |
-| `.` | Toggle recently closed tabs |
-| `;` | View tab history (back/forward) |
-| `Tab` | Enter web search mode |
-| `Esc` | Close the overlay |
+| Key                   | Action                          |
+| --------------------- | ------------------------------- |
+| `↑` / `↓` / `←` / `→` | Navigate through tabs           |
+| `Enter`               | Switch to the selected tab      |
+| `Delete`              | Close the selected tab          |
+| `` ` ``               | Duplicate the selected tab      |
+| `.`                   | Toggle recently closed tabs     |
+| `;`                   | View tab history (back/forward) |
+| `Tab`                 | Enter web search mode           |
+| `Esc`                 | Close the overlay               |
 
 ### Inside Quick Switch (`Alt + Q`)
 
-| Key | Action |
-| --- | --- |
-| `Alt + Q` (hold Alt) | Cycle to the next tab |
-| `↑` / `↓` / `←` / `→` | Move the selection |
-| `Enter` | Switch immediately |
-| Release `Alt` | Switch to the selected tab |
-| `Esc` | Cancel and close |
+| Key                   | Action                     |
+| --------------------- | -------------------------- |
+| `Alt + Q` (hold Alt)  | Cycle to the next tab      |
+| `↑` / `↓` / `←` / `→` | Move the selection         |
+| `Enter`               | Switch immediately         |
+| Release `Alt`         | Switch to the selected tab |
+| `Esc`                 | Cancel and close           |
 
 ### Global Commands
 
-| Command | Default Shortcut |
-| --- | --- |
-| Show Tab Flow | `Alt + W` |
-| Quick Switch | `Alt + Q` |
+| Command        | Default Shortcut   |
+| -------------- | ------------------ |
+| Show Tab Flow  | `Alt + W`          |
+| Quick Switch   | `Alt + Q`          |
 | Cycle Next Tab | `Ctrl + Shift + K` |
 
 > **💡 Pro Tip:** Want to use `Ctrl+Tab` instead? Go to `chrome://extensions/shortcuts` and remap the commands to whatever feels natural. Makes Tab Flow feel completely native.
@@ -161,7 +152,6 @@ Coming soon — star this repo to get notified when it's live.
    ```
 
 3. **Load in Chrome:**
-
    - Navigate to `chrome://extensions/`
    - Enable **Developer mode** (toggle in the top-right corner)
    - Click **Load unpacked**
@@ -175,16 +165,16 @@ Coming soon — star this repo to get notified when it's live.
 
 Tab Flow is engineered for speed and privacy. Here's what's under the hood:
 
-| Layer | Technology | Why |
-| --- | --- | --- |
-| Language | TypeScript (strict mode) | Type safety across the entire codebase |
-| Build | Vite + CRXJS | Sub-second rebuilds; native Manifest V3 support |
-| Extension API | Manifest V3 + Service Worker | Chrome's latest platform — more secure, less resource usage |
-| Overlay isolation | Shadow DOM | The overlay never conflicts with a page's styles or scripts |
-| Screenshot cache | IndexedDB + LRU eviction | Persistent across sessions; bounded at ~50 MB by default |
-| Rendering | Virtual scrolling | 100+ tabs at 60 fps with no jank |
-| Search | Custom fuzzy matcher | Scored ranking with consecutive-match and word-boundary bonuses |
-| Dependencies | Zero runtime dependencies | The core runs on the Chrome APIs alone |
+| Layer             | Technology                   | Why                                                             |
+| ----------------- | ---------------------------- | --------------------------------------------------------------- |
+| Language          | TypeScript (strict mode)     | Type safety across the entire codebase                          |
+| Build             | Vite + CRXJS                 | Sub-second rebuilds; native Manifest V3 support                 |
+| Extension API     | Manifest V3 + Service Worker | Chrome's latest platform — more secure, less resource usage     |
+| Overlay isolation | Shadow DOM                   | The overlay never conflicts with a page's styles or scripts     |
+| Screenshot cache  | IndexedDB + LRU eviction     | Persistent across sessions; bounded at ~50 MB by default        |
+| Rendering         | Virtual scrolling            | 100+ tabs at 60 fps with no jank                                |
+| Search            | Custom fuzzy matcher         | Scored ranking with consecutive-match and word-boundary bonuses |
+| Dependencies      | Zero runtime dependencies    | The core runs on the Chrome APIs alone                          |
 
 ### Architecture
 
@@ -235,7 +225,7 @@ For the formal details, see the [Privacy Policy](./PRIVACY.md).
 **Does it need access to all my sites?**
 Not unless you ask it to. At install Tab Flow requests **no** broad host permission, so you won't get the "read and change all your data on all websites" warning. It uses `activeTab`, which gives it temporary access to **only the current tab** — and only when you press a shortcut — to draw the overlay and capture that tab's preview.
 
-Site access is offered as an *optional* permission you can turn on from the options page if you want previews for every tab and media controls on tabs you haven't opened the switcher from. Chrome asks for your consent when you flip that toggle, it stays off until you do, and turning it back off revokes it immediately.
+Site access is offered as an _optional_ permission you can turn on from the options page if you want previews for every tab and media controls on tabs you haven't opened the switcher from. Chrome asks for your consent when you flip that toggle, it stays off until you do, and turning it back off revokes it immediately.
 
 **Does it work on `chrome://` pages?**
 Chrome doesn't allow extensions to inject into internal pages. On those pages, Tab Flow opens a popup window with the same UI and functionality — you don't lose any capability.
@@ -268,10 +258,3 @@ For detailed guidelines, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 ## License
 
 [MIT](./LICENSE) — use it, modify it, share it.
-
----
-
-<p align="center">
-  <strong>Built for people who have too many tabs open.</strong><br />
-  (So, everyone.)
-</p>
