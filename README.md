@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/prabhjot0109/TabFlow/releases"><img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version" /></a>
+  <a href="https://github.com/prabhjot0109/TabFlow/releases"><img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License" /></a>
   <a href="#installation"><img src="https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-grey.svg" alt="Platforms" /></a>
 </p>
@@ -34,7 +34,7 @@ Tab Flow replaces the painfully slow "hunt and click" ritual with two keyboard-f
 | **Quick Switch** | `Alt + Q` | Windows Alt+Tab, but for browser tabs. Hold Alt, tap Q to cycle, release Alt to land. Zero typing. |
 | **Tab Flow** | `Alt + W` | A full overlay with live thumbnails, fuzzy search, media controls, tab history, web search, and more. |
 
-Both modes open in **under 100 ms**. You see real screenshot previews of every tab — no more guessing which "Untitled Document" is the right one.
+Both modes open in **under 100 ms**, with real screenshot previews instead of a wall of identical favicons — no more guessing which "Untitled Document" is the right one.
 
 ---
 
@@ -82,7 +82,7 @@ Press `` ` `` (backtick) to duplicate the currently selected tab. Useful when yo
 
 ### 🎨 Adaptive Design
 
-Tab Flow's overlay uses glassmorphism and smooth transitions, and it automatically adapts to your system's light or dark theme. It's designed to look like a native part of your browser, not a clunky add-on.
+Tab Flow's overlay is a clean, opaque panel with smooth transitions, and it automatically adapts to your system's light or dark theme. It deliberately avoids backdrop blur — blurring the live page behind the panel costs a GPU pass on every frame, and a switcher that has to open in under 100 ms can't afford it.
 
 ### 🖥️ Works Everywhere
 

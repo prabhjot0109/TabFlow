@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # No lockfile is committed, so this cannot be `npm ci`.
+      - run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Must run before the tests: tests/dist-assets.test.mjs checks the built
+      # manifest against real files, and skips itself when dist/ is absent.
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

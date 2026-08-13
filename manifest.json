@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Flow - Visual Tab Manager & Switcher",
   "short_name": "Tab Flow",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Switch browser tabs visually with live thumbnail previews, fuzzy search, and Alt+Tab-style keyboard navigation.",
   "homepage_url": "https://github.com/prabhjot0109/TabFlow",
   "minimum_chrome_version": "121",
