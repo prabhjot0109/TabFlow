@@ -62,7 +62,7 @@ Tabs playing audio are marked with a speaker icon. You can **play, pause, or mut
 
 ### 📂 Tab Groups
 
-If you use Chrome's built-in tab groups, Tab Flow respects them. Groups are displayed with their color coding and can be collapsed, so you can focus on the tabs that matter right now.
+If you use Chrome's built-in tab groups, Tab Flow respects them. Grouped tabs carry their group's color and name, in both Tab Flow and Quick Switch, so you can tell at a glance which project a tab belongs to.
 
 ### ⏪ Tab History
 
@@ -104,9 +104,9 @@ Open the options page to fine-tune:
 
 | Key | Action |
 | --- | --- |
-| `↑` / `↓` | Navigate through tabs |
+| `↑` / `↓` / `←` / `→` | Navigate through tabs |
 | `Enter` | Switch to the selected tab |
-| `Delete` / `Backspace` | Close the selected tab |
+| `Delete` | Close the selected tab |
 | `` ` `` | Duplicate the selected tab |
 | `.` | Toggle recently closed tabs |
 | `;` | View tab history (back/forward) |
@@ -118,6 +118,8 @@ Open the options page to fine-tune:
 | Key | Action |
 | --- | --- |
 | `Alt + Q` (hold Alt) | Cycle to the next tab |
+| `↑` / `↓` / `←` / `→` | Move the selection |
+| `Enter` | Switch immediately |
 | Release `Alt` | Switch to the selected tab |
 | `Esc` | Cancel and close |
 
