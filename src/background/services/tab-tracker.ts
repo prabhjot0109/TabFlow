@@ -1,190 +1,30 @@
 // ============================================================================
 // TAB TRACKER SERVICE
-// Manages tab order tracking (recent access order, open order)
+// Orders tabs by how recently they were used.
 // ============================================================================
 
-// Track tab access order (most recent first) - will be restored from storage
-let recentTabOrder: number[] = [];
-
-// Track when tabs were opened (tabId -> timestamp)
-const tabOpenOrder = new Map<number, number>();
-
-// Flag to track if recent order has been restored
-let recentOrderRestored = false;
-
-// Debounced save timer
-let saveRecentOrderTimer: ReturnType<typeof setTimeout> | null = null;
-
-// ============================================================================
-// GETTERS
-// ============================================================================
-
-export function getTabOpenTime(tabId: number): number | undefined {
-  return tabOpenOrder.get(tabId);
-}
-
-export function isRecentOrderRestored(): boolean {
-  return recentOrderRestored;
-}
-
-// ============================================================================
-// SETTERS
-// ============================================================================
-
-export function setTabOpenTime(tabId: number, timestamp?: number): void {
-  tabOpenOrder.set(tabId, timestamp ?? Date.now());
-}
-
-// ============================================================================
-// RECENT ORDER MANAGEMENT
-// ============================================================================
-
-export function updateRecentTabOrder(tabId: number): void {
-  removeFromRecentOrder(tabId);
-  recentTabOrder.unshift(tabId);
-
-  // Keep only necessary entries - increased for 100+ tabs support
-  const maxRecentEntries = 200;
-  if (recentTabOrder.length > maxRecentEntries) {
-    recentTabOrder.length = maxRecentEntries;
-  }
-
-  // Persist to storage (debounced)
-  saveRecentOrderDebounced();
-}
-
-export function removeFromRecentOrder(tabId: number): void {
-  const index = recentTabOrder.indexOf(tabId);
-  if (index !== -1) {
-    recentTabOrder.splice(index, 1);
-  }
-}
-
-export function removeTabOpenOrder(tabId: number): void {
-  tabOpenOrder.delete(tabId);
-}
-
-// Debounced save to avoid too many writes
-function saveRecentOrderDebounced(): void {
-  if (saveRecentOrderTimer) clearTimeout(saveRecentOrderTimer);
-  saveRecentOrderTimer = setTimeout(() => {
-    chrome.storage.local
-      .set({ recentTabOrder: recentTabOrder.slice(0, 200) })
-      .catch((e) => console.debug("[STORAGE] Failed to save recent order:", e));
-  }, 500);
-}
-
-// Restore recent order from storage
-export async function restoreRecentOrder(): Promise<void> {
-  try {
-    const result = await chrome.storage.local.get(["recentTabOrder"]);
-    if (result.recentTabOrder && Array.isArray(result.recentTabOrder)) {
-      // Filter out tabs that no longer exist
-      const existingTabs = await chrome.tabs.query({});
-      const existingIds = new Set(existingTabs.map((t) => t.id));
-      recentTabOrder = result.recentTabOrder.filter((id: number) =>
-        existingIds.has(id)
-      );
-      console.log(
-        `[INIT] Restored ${recentTabOrder.length} recent tab order entries`
-      );
-    }
-  } catch (e) {
-    console.debug("[STORAGE] Failed to restore recent order:", e);
-  }
-  recentOrderRestored = true;
-}
-
-// ============================================================================
-// SORTING
-// ============================================================================
-
-// Sort tabs by recent usage (most recently accessed first)
-// Uses Chrome's lastAccessed timestamp as primary sort, falls back to our tracking
+// Chrome populates `lastAccessed` on every tab (121+, which manifest.json
+// pins via minimum_chrome_version). It is strictly better than anything this
+// extension could track itself: it survives service-worker suspension and
+// browser restarts for free, and needs no storage writes on tab activation.
+//
+// This module used to also keep a persisted `recentTabOrder` array as a
+// fallback. That fallback was unreachable — the lastAccessed comparison below
+// returns first for any pair of real tabs — so it was pure cost: a debounced
+// chrome.storage.local write on every tab switch, plus a storage read and a
+// full tabs.query on first open, to build an ordering nothing consumed.
 export function sortTabsByRecent<T extends chrome.tabs.Tab>(tabs: T[]): T[] {
-  const recentIndexMap = new Map<number, number>();
-  recentTabOrder.forEach((id, index) => {
-    recentIndexMap.set(id, index);
-  });
-
   return [...tabs].sort((a, b) => {
-    // Primary: Use Chrome's lastAccessed timestamp if available (most reliable)
-    const aLastAccessed = (a as any).lastAccessed || 0;
-    const bLastAccessed = (b as any).lastAccessed || 0;
+    const aLastAccessed = a.lastAccessed ?? 0;
+    const bLastAccessed = b.lastAccessed ?? 0;
 
-    if (aLastAccessed && bLastAccessed) {
-      return bLastAccessed - aLastAccessed; // Higher (more recent) first
-    }
-    if (aLastAccessed) return -1;
-    if (bLastAccessed) return 1;
-
-    // Fallback: Use our tracked recent order
-    const aRecentIndex =
-      typeof a.id === "number" ? recentIndexMap.get(a.id) ?? -1 : -1;
-    const bRecentIndex =
-      typeof b.id === "number" ? recentIndexMap.get(b.id) ?? -1 : -1;
-
-    // Both in recent order - sort by recency (lower index = more recent)
-    if (aRecentIndex !== -1 && bRecentIndex !== -1) {
-      return aRecentIndex - bRecentIndex;
+    // Higher (more recent) first.
+    if (aLastAccessed !== bLastAccessed) {
+      return bLastAccessed - aLastAccessed;
     }
 
-    // One in recent, one not
-    if (aRecentIndex !== -1) return -1;
-    if (bRecentIndex !== -1) return 1;
-
-    // Neither in recent - sort by open time (newer first)
-    const aTime = typeof a.id === "number" ? tabOpenOrder.get(a.id) ?? 0 : 0;
-    const bTime = typeof b.id === "number" ? tabOpenOrder.get(b.id) ?? 0 : 0;
-
-    if (aTime !== bTime) {
-      return bTime - aTime;
-    }
-
-    // Final fallback: tab index (higher index = more recent in Chrome)
+    // Only reachable for tabs Chrome never stamped; fall back to tab strip
+    // position, where a higher index is the more recently opened tab.
     return (b.index ?? 0) - (a.index ?? 0);
   });
-}
-
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
-export async function initializeExistingTabs(): Promise<void> {
-  try {
-    // First restore recent order from storage
-    await restoreRecentOrder();
-
-    const tabs = await chrome.tabs.query({});
-    const now = Date.now();
-
-    // Initialize open order for all existing tabs
-    tabs.forEach((tab, index) => {
-      if (tab.id && !tabOpenOrder.has(tab.id)) {
-        // Assign timestamps based on tab index to preserve relative order
-        tabOpenOrder.set(tab.id, now - (tabs.length - index) * 1000);
-      }
-    });
-
-    // Find active tabs in each window
-    const windows = await chrome.windows.getAll();
-    for (const win of windows) {
-      const [activeTab] = await chrome.tabs.query({
-        windowId: win.id,
-        active: true,
-      });
-      if (activeTab && activeTab.id) {
-        // Only update if not already in recent order (to preserve restored order)
-        if (recentTabOrder.indexOf(activeTab.id) === -1) {
-          updateRecentTabOrder(activeTab.id);
-        }
-      }
-    }
-
-    console.log(
-      `[INIT] Initialized ${tabs.length} existing tabs, ${recentTabOrder.length} in recent order`
-    );
-  } catch (error: any) {
-    console.error("[INIT] Failed to initialize existing tabs:", error);
-  }
 }

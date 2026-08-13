@@ -5,6 +5,7 @@
   "version": "1.1.0",
   "description": "Switch browser tabs visually with live thumbnail previews, fuzzy search, and Alt+Tab-style keyboard navigation.",
   "homepage_url": "https://github.com/prabhjot0109/TabFlow",
+  "minimum_chrome_version": "121",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
   },

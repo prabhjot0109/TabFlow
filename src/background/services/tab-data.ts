@@ -14,15 +14,6 @@ type BuildTabsOptions = {
 
 type TabWithId = chrome.tabs.Tab & { id: number };
 
-function ensureTabOpenOrder(tabs: TabWithId[]): void {
-  const now = Date.now();
-  tabs.forEach((tab, index) => {
-    if (!tabTracker.getTabOpenTime(tab.id)) {
-      tabTracker.setTabOpenTime(tab.id, now - (tabs.length - index) * 1000);
-    }
-  });
-}
-
 function toSharedTab(
   tab: TabWithId,
   screenshotData: string | null,
@@ -53,7 +44,6 @@ async function getSortedWindowTabs(windowId: number): Promise<TabWithId[]> {
     (tab): tab is TabWithId => typeof tab.id === "number",
   );
 
-  ensureTabOpenOrder(tabsWithIds);
   return tabTracker.sortTabsByRecent(tabsWithIds);
 }
 

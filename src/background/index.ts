@@ -9,7 +9,6 @@ import { PERF_CONFIG } from "./config";
 import { LRUCache } from "./cache/lru-cache";
 import { perfMetrics } from "./utils/performance";
 import * as mediaTracker from "./services/media-tracker";
-import * as tabTracker from "./services/tab-tracker";
 import * as screenshot from "./services/screenshot";
 import {
   buildFlowPayload,
@@ -240,9 +239,8 @@ async function initialize(): Promise<void> {
   await screenshot.loadQualityTierFromStorage();
 
   // Initialize tabs after a short delay
-  setTimeout(async () => {
-    await tabTracker.initializeExistingTabs();
-    await mediaTracker.initializeAudibleTabs();
+  setTimeout(() => {
+    void mediaTracker.initializeAudibleTabs();
   }, 100);
 }
 
@@ -361,14 +359,12 @@ async function loadCacheSettings(): Promise<void> {
 // ============================================================================
 
 if (typeof chrome !== "undefined" && chrome.tabs) {
-  // Listen for tab activation — track recency only. Screenshots cannot be
-  // captured here (a plain tab switch is not a user invocation, so the
-  // extension has no access to the page); captures happen at invocation time
-  // instead. See captureInvokedTab.
+  // Recency needs no bookkeeping here — Chrome stamps tabs.Tab.lastAccessed
+  // itself, which is what sortTabsByRecent reads. This listener exists only to
+  // queue a preview capture, and only when broad host access has been granted.
   chrome.tabs.onActivated.addListener(
     (activeInfo: chrome.tabs.OnActivatedInfo) => {
       try {
-        tabTracker.updateRecentTabOrder(activeInfo.tabId);
         scheduleActivationCapture(activeInfo.tabId);
       } catch (e) {
         console.debug("[TAB] Error in onActivated:", e);
@@ -401,21 +397,10 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
     },
   );
 
-  // Track when tabs are created
-  chrome.tabs.onCreated.addListener((tab: chrome.tabs.Tab) => {
-    try {
-      if (tab.id) tabTracker.setTabOpenTime(tab.id);
-    } catch (e) {
-      console.debug("[TAB] Error in onCreated:", e);
-    }
-  });
-
   // Clean up when tabs are closed
   chrome.tabs.onRemoved.addListener((tabId: number) => {
     try {
       screenshotCache.delete(tabId);
-      tabTracker.removeFromRecentOrder(tabId);
-      tabTracker.removeTabOpenOrder(tabId);
       mediaTracker.removeMediaTab(tabId);
       console.debug(`[CLEANUP] Removed tab ${tabId} from cache`);
     } catch (e) {
@@ -449,15 +434,6 @@ async function handleShowTabFlow(): Promise<void> {
       new Promise<void>((resolve) => setTimeout(resolve, 300)),
     ]);
   }
-  // Restore recent tab order in the background; don't block the overlay on it.
-  // Tabs will fall back to Chrome's lastAccessed ordering if restoration is still
-  // in progress when buildFlowPayload runs — same behaviour as Quick Switch.
-  if (!tabTracker.isRecentOrderRestored()) {
-    tabTracker.restoreRecentOrder().catch((err) => {
-      console.debug("[TAB FLOW] Failed to restore recent order:", err);
-    });
-  }
-
   const startTime = performance.now();
 
   try {
@@ -625,17 +601,6 @@ async function handleQuickSwitch(): Promise<void> {
     // overlay isn't captured. Returns instantly when the cache is fresh.
     if (screenshot.isTabCapturable(activeTab)) {
       await captureInvokedTab(activeTab);
-    }
-
-    // Restore recent order asynchronously. Quick switch can open immediately
-    // with Chrome's lastAccessed sorting while restoration catches up.
-    if (!tabTracker.isRecentOrderRestored()) {
-      tabTracker.restoreRecentOrder().catch((error) => {
-        console.debug(
-          "[QUICK SWITCH] Failed to restore recent order in background:",
-          error,
-        );
-      });
     }
 
     if (typeof currentWindow.id !== "number") {
