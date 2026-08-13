@@ -752,6 +752,12 @@ function updateQuickSwitchViewUI() {
       String(cachedQuickSwitchViewMode === "list")
     );
   }
+
+  // Rebuild for the new mode when this fires at the overlay while it is open
+  // (a storage change from another tab or the options page).
+  if (state.isQuickSwitchVisible && state.quickSwitchTabs.length > 0) {
+    renderQuickSwitchTabs(state.quickSwitchTabs);
+  }
 }
 
 function createQuickSwitchOverlay() {
@@ -894,7 +900,11 @@ function createQuickSwitchOverlay() {
 
     // Update grid class
     grid.classList.toggle("list-view", view === "list");
-    syncPanelDensity(container, grid, quickSwitchCards.length);
+
+    // Cards bake in whether they carry a screenshot or a favicon tile, so the
+    // grid class alone is not enough — they have to be rebuilt for the new
+    // mode. The main overlay's toggle already did this.
+    renderQuickSwitchTabs(state.quickSwitchTabs);
   });
 
   // Click backdrop to close
