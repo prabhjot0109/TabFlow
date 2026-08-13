@@ -1,3 +1,9 @@
+import {
+  hasBroadHostAccess,
+  requestBroadHostAccess,
+  revokeBroadHostAccess,
+} from "../shared/host-access";
+
 type ViewMode = "grid" | "list";
 type QualityTier = "PERFORMANCE" | "NORMAL" | "HIGH";
 
@@ -27,6 +33,7 @@ const ELEMENTS = {
   ) as HTMLSelectElement,
   saveBtn: document.getElementById("saveBtn") as HTMLButtonElement,
   resetBtn: document.getElementById("resetBtn") as HTMLButtonElement,
+  hostAccess: document.getElementById("hostAccess") as HTMLInputElement,
   status: document.getElementById("status") as HTMLElement,
   configureShortcutsBtn: document.getElementById(
     "configureShortcutsBtn"
@@ -175,9 +182,40 @@ async function displayShortcuts() {
   }
 }
 
+// Host access is a permission, not a stored setting — it is applied the moment
+// the box is toggled rather than on Save, because chrome.permissions.request
+// must run inside the user gesture that triggered it.
+function handleHostAccessToggle() {
+  const wantsAccess = ELEMENTS.hostAccess.checked;
+  const apply = wantsAccess ? requestBroadHostAccess() : revokeBroadHostAccess();
+
+  apply
+    .then(async (succeeded) => {
+      // The user can dismiss Chrome's prompt, so trust the permission itself
+      // rather than the checkbox we just read.
+      const granted = await hasBroadHostAccess();
+      ELEMENTS.hostAccess.checked = granted;
+
+      if (granted) {
+        setStatus("Full previews and media control enabled.");
+      } else if (wantsAccess && !succeeded) {
+        setStatus("Site access was declined. Tab Flow will keep working with previews for the current tab only.");
+      } else {
+        setStatus("Site access removed.");
+      }
+    })
+    .catch((error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Failed to update site access.";
+      setStatus(message, true);
+    });
+}
+
 async function initialize() {
   const settings = await loadSettings();
   writeFormValues(settings);
+  ELEMENTS.hostAccess.checked = await hasBroadHostAccess();
+  ELEMENTS.hostAccess.addEventListener("change", handleHostAccessToggle);
   ELEMENTS.saveBtn.addEventListener("click", handleSave);
   ELEMENTS.resetBtn.addEventListener("click", handleReset);
   ELEMENTS.configureShortcutsBtn.addEventListener("click", () => {

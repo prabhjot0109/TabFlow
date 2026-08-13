@@ -108,6 +108,24 @@ label {
   color: var(--muted);
 }
 
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.checkbox-field input[type="checkbox"] {
+  flex: none;
+  inline-size: 16px;
+  block-size: 16px;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 select,
 input {
   background: transparent;

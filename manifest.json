@@ -17,6 +17,9 @@
     "sessions",
     "favicon"
   ],
+  "optional_host_permissions": [
+    "*://*/*"
+  ],
   "background": {
     "service_worker": "src/background/index.ts"
   },

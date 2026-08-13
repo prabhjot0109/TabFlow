@@ -11,7 +11,7 @@ Tab Flow is a browser extension that helps you navigate between your open tabs q
 To provide the tab switching functionality, Tab Flow accesses:
 
 - **Tab Information:** Title, URL, and favicon of your open tabs (to display in the tab switcher)
-- **Tab Screenshots:** A visual capture of the tab you're viewing, taken only at the moment you open the switcher (via the `activeTab` permission), to show thumbnail previews. Tab Flow captures only the tab you explicitly open the switcher from — never other tabs, and never silently in the background.
+- **Tab Screenshots:** A visual capture of a tab you're viewing, to show thumbnail previews. By default this happens only at the moment you open the switcher (via the `activeTab` permission), and only for the tab you open it from. If you turn on the optional **Full Previews & Media Control** permission, Tab Flow also captures a tab shortly after you switch to it. In both cases it only ever captures a tab you are actively looking at — Chrome cannot photograph a background tab — and screenshots never leave your device.
 - **Tab Groups:** Names and colors of your Chrome tab groups (to organize the display)
 - **Recently Closed Tabs:** Session information for tabs you've recently closed (to allow restoration)
 
@@ -47,9 +47,17 @@ All data is stored **locally on your device** using:
 | `sessions`   | Access recently closed tabs for the restore feature                           |
 | `favicon`    | Display website icons in the tab list                                          |
 
-## No Broad Host Permissions
+### Optional Permission
 
-Tab Flow does **not** request `<all_urls>` or any broad "read and change data on all sites" access, so you won't see that warning at install. Instead it uses the `activeTab` permission: when you press a shortcut, Chrome grants Tab Flow temporary access to **only the tab you're currently on**, just long enough to draw the overlay and capture that one tab's preview. It has no standing access to any site.
+| Permission | Why We Need It |
+| ---------- | -------------- |
+| `*://*/*` (optional, off by default) | Capture a preview of each tab as you switch to it, and control audio/video on tabs you haven't opened the switcher from |
+
+## No Broad Host Permissions At Install
+
+Tab Flow does **not** request `<all_urls>` at install, so you won't see the "read and change data on all sites" warning when you add it. It runs on the `activeTab` permission: when you press a shortcut, Chrome grants Tab Flow temporary access to **only the tab you're currently on**, just long enough to draw the overlay and capture that one tab's preview.
+
+Broad site access is available as an **optional** permission, listed under `optional_host_permissions` in the manifest. It is off until you turn it on from the options page, Chrome prompts for your consent at that point, and switching the toggle back off revokes it. It exists solely to enable the two features named in the table above — it does not change what data is collected, where it is stored, or the fact that nothing is transmitted.
 
 We do **not** read, analyze, or store the content of web pages beyond capturing those preview screenshots.
 

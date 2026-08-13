@@ -28,14 +28,27 @@ Paste each into the matching "justification" field on the dashboard.
 - **`sessions`** — Powers the "recently closed tabs" feature: lists recently
   closed tabs/windows and restores the one the user selects.
 - **`favicon`** — Displays site favicons next to tabs in the list.
+- **`*://*/*` (optional_host_permissions)** — Optional and off by default.
+  Requested only if the user enables "Full Previews & Media Control" in the
+  options page, where Chrome shows its own consent prompt. It allows Tab Flow to
+  (a) capture a preview of each tab shortly after the user switches to it, so
+  the switcher shows thumbnails for more than one tab, and (b) inject the
+  content script into a tab the user has not invoked the switcher from, which is
+  required to play/pause that tab's audio or video from the overlay. Revoking
+  the toggle removes the permission. No page content is read, stored, or
+  transmitted beyond the preview screenshots, which stay on-device.
 
 ## Host permissions
 
-None. Tab Flow declares **no** host permissions and does **not** request
-`<all_urls>`. Thumbnail previews are captured with `chrome.tabs.captureVisibleTab`
-under the `activeTab` grant — i.e. only the tab the user is on, only when they
-invoke the switcher. This avoids the broad "read and change data on all sites"
-install warning and keeps review friction low.
+**None required at install.** Tab Flow declares no `host_permissions` and does
+not request `<all_urls>` up front, so it avoids the broad "read and change data
+on all sites" install warning. Thumbnail previews are captured with
+`chrome.tabs.captureVisibleTab` under the `activeTab` grant — only the tab the
+user is on, only when they invoke the switcher.
+
+Broad access is declared under `optional_host_permissions` and is never
+requested automatically: the user opts in from the options page, and can revoke
+it there. See the justification above for exactly what it enables.
 
 ## Data usage / privacy practices
 

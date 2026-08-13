@@ -52,7 +52,9 @@ Press `Alt + Q` and Tab Flow shows a compact grid of your most recently used tab
 
 Tabs show real screenshots — in both **Tab Flow** (`Alt + W`) and **Quick Switch** (`Alt + Q`). No generic icons, no text-only lists. You can visually scan for the page you want the same way you'd flip through papers on a desk.
 
-Previews are captured using the `activeTab` permission — Tab Flow grabs a screenshot of the tab you're on at the moment you open the switcher. So a tab gets its preview the first time you open the switcher while on it, and it's refreshed each time after. Tabs you haven't opened the switcher from yet show clean favicon cards until then. The upside: **no "read and change data on all sites" permission**, and Tab Flow never captures or touches a page in the background.
+Out of the box, previews are captured using the `activeTab` permission — Tab Flow grabs a screenshot of the tab you're on at the moment you open the switcher. So a tab gets its preview the first time you open the switcher while on it, and it's refreshed each time after. Tabs you haven't opened the switcher from yet show clean favicon cards until then. The upside: **no "read and change data on all sites" permission at install**, and Tab Flow never captures or touches a page in the background.
+
+If you'd rather have a preview for every tab, the options page has an opt-in **Full Previews & Media Control** toggle. Granting it lets Tab Flow snapshot each tab as you switch to it, so coverage fills in as you browse — and it's what makes play/pause work on tabs you haven't opened the switcher from. It's off by default and you can revoke it at any time. Screenshots stay in local storage either way.
 
 ### 🔊 Media Controls
 
@@ -229,7 +231,9 @@ For the formal details, see the [Privacy Policy](./PRIVACY.md).
 ## FAQ
 
 **Does it need access to all my sites?**
-No. Tab Flow does **not** request `<all_urls>` or any broad host permission, so you won't get the "read and change all your data on all websites" warning. It uses `activeTab`, which gives it temporary access to **only the current tab** — and only when you press a shortcut — to draw the overlay and capture that tab's preview. It has no standing access to any site and never touches pages in the background.
+Not unless you ask it to. At install Tab Flow requests **no** broad host permission, so you won't get the "read and change all your data on all websites" warning. It uses `activeTab`, which gives it temporary access to **only the current tab** — and only when you press a shortcut — to draw the overlay and capture that tab's preview.
+
+Site access is offered as an *optional* permission you can turn on from the options page if you want previews for every tab and media controls on tabs you haven't opened the switcher from. Chrome asks for your consent when you flip that toggle, it stays off until you do, and turning it back off revokes it immediately.
 
 **Does it work on `chrome://` pages?**
 Chrome doesn't allow extensions to inject into internal pages. On those pages, Tab Flow opens a popup window with the same UI and functionality — you don't lose any capability.
