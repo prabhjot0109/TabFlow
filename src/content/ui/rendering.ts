@@ -250,7 +250,6 @@ export function renderTabsVirtual(tabs: Tab[]) {
     return;
   }
 
-  const itemHeight = getVirtualItemHeight();
   const itemStride = getVirtualItemStride();
   const scrollTop = Math.max(0, grid.scrollTop - VIRTUAL_LIST_PADDING_TOP);
   const viewportHeight = Math.max(
@@ -544,12 +543,14 @@ export function enforceSingleSelection(scrollIntoView: boolean) {
     target.classList.add("selected");
     target.setAttribute("aria-selected", "true");
 
-    // Update active descendant for screen readers
-    grid.setAttribute(
-      "aria-activedescendant",
-      target.id || `tab-card-${state.selectedIndex}`
-    );
+    // aria-activedescendant has to sit on the element that actually holds DOM
+    // focus, which is the search box — the grid never receives focus in this
+    // overlay, so announcing from there reached no screen reader.
     if (!target.id) target.id = `tab-card-${state.selectedIndex}`;
+    (state.domCache.searchBox ?? grid).setAttribute(
+      "aria-activedescendant",
+      target.id,
+    );
 
     if (scrollIntoView) {
       requestAnimationFrame(() => {
@@ -631,6 +632,7 @@ export function cleanupTabRendering() {
   grid.classList.remove("virtual-list", "search-mode", "recent-mode");
   grid.style.minHeight = "";
   grid.removeAttribute("aria-activedescendant");
+  state.domCache.searchBox?.removeAttribute("aria-activedescendant");
 }
 
 // History Views
@@ -1019,14 +1021,23 @@ interface CapturedGridState {
   stateMap: Map<string, { rect: DOMRect; element: HTMLElement }>;
 }
 
+// FLIP measures every card twice — once before the rebuild and once after —
+// so it costs two forced layouts per render, and renders happen on every
+// search keystroke. Past a couple of dozen cards that is more jank than the
+// animation is worth, so the grid just cuts to the new layout instead.
+const FLIP_MAX_CARDS = 24;
+
 function captureGridState(grid: HTMLElement): CapturedGridState {
   const gridRect = grid.getBoundingClientRect();
   const scrollTop = grid.scrollTop;
   const stateMap = new Map<string, { rect: DOMRect; element: HTMLElement }>();
-  
+
   // Only capture if grid is not virtual list
-  if (!grid.classList.contains("virtual-list")) {
-    const cards = grid.querySelectorAll(".tab-card");
+  const cards = grid.classList.contains("virtual-list")
+    ? []
+    : grid.querySelectorAll(".tab-card");
+
+  if (cards.length > 0 && cards.length <= FLIP_MAX_CARDS) {
     cards.forEach((card) => {
       const htmlCard = card as HTMLElement;
       const key = getCardKey(htmlCard);
@@ -1050,6 +1061,9 @@ function applyGridFLIP(
   if (firstState.size === 0) return; // Nothing to animate from
 
   const newCards = grid.querySelectorAll(".tab-card");
+  // Bail before the second measurement pass when the list grew past the point
+  // where animating it is worth two forced layouts.
+  if (newCards.length > FLIP_MAX_CARDS) return;
   const lastState = new Map<string, { rect: DOMRect; element: HTMLElement }>();
 
   // 1. Capture new positions

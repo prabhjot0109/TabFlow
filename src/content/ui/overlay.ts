@@ -291,10 +291,11 @@ function ensureHostMountedAbovePage() {
   if (!mountTarget) return;
 
   try {
+    // Only move when the target actually changed (entering/leaving fullscreen).
+    // Re-appending an element that is already in place re-inserts the whole
+    // shadow tree for nothing, and would close an open modal <dialog>.
+    // Stacking is handled by z-index plus the dialog top layer, not order.
     if (state.host.parentNode !== mountTarget) {
-      mountTarget.appendChild(state.host);
-    } else {
-      // Move to the end to win same-z-index ties.
       mountTarget.appendChild(state.host);
     }
   } catch {
@@ -409,6 +410,9 @@ export function createOverlay() {
   searchBox.placeholder = "Search tabs by title or URL...";
   searchBox.autocomplete = "off";
   searchBox.setAttribute("aria-label", "Search tabs");
+  // Ties the input to the listbox it drives, so aria-activedescendant set on
+  // this input resolves against the grid's options.
+  searchBox.setAttribute("aria-controls", "tab-flow-grid");
 
   // Logo icon instead of search icon (Tab Flow logo)
   const searchIcon = document.createElement("div");

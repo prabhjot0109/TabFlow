@@ -227,7 +227,7 @@ async function initialize(): Promise<void> {
       1024
     ).toFixed(2)}MB`,
   );
-  log(`Rate Limit: ${PERF_CONFIG.MAX_CAPTURES_PER_SECOND} captures/sec`);
+  log(`Rate Limit: 1 capture per ${PERF_CONFIG.THROTTLE_INTERVAL}ms`);
   log(`Target: <100ms overlay open, <50MB memory, 60fps`);
   log("═══════════════════════════════════════════════════════");
 

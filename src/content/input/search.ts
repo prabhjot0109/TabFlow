@@ -1,5 +1,5 @@
 import { state } from "../state";
-import { switchToActive, switchToRecent } from "../actions";
+import { renderHelpText, switchToActive, switchToRecent } from "../actions";
 import {
   renderTabsStandard,
   renderTabsVirtual,
@@ -234,16 +234,14 @@ export function handleSearch(e: Event) {
       }
 
       // Update help text for history mode
-      if (state.domCache.helpText) {
-        state.domCache.helpText.innerHTML = `
-            <span><kbd>;</kbd> History Mode</span>
-            <span><kbd>←→</kbd> Switch Column</span>
-            <span><kbd>↑↓</kbd> Navigate</span>
-            <span><kbd>Enter</kbd> Go</span>
-            <span><kbd>Backspace</kbd> Exit</span>
-            <span><kbd>Esc</kbd> Close</span>
-          `;
-      }
+      renderHelpText(state.domCache.helpText ?? undefined, [
+        { keys: [";"], action: "History Mode" },
+        { keys: ["←→"], action: "Switch Column" },
+        { keys: ["↑↓"], action: "Navigate" },
+        { keys: ["Enter"], action: "Go" },
+        { keys: ["Backspace"], action: "Exit" },
+        { keys: ["Esc"], action: "Close" },
+      ]);
 
       // Use the Navigation API to get actual browser history entries
       // This is more reliable than tracking history ourselves

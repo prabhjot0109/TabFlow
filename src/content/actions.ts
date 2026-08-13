@@ -105,7 +105,7 @@ function createKbd(text: string): HTMLElement {
   return kbd;
 }
 
-function renderHelpText(
+export function renderHelpText(
   helpText: HTMLElement | undefined,
   items: Array<{ keys: string[]; action: string }>
 ) {

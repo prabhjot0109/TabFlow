@@ -20,7 +20,15 @@ function getStaticImports(filePath) {
   );
 }
 
-test("built manifest and service worker reference existing dist assets", () => {
+test("built manifest and service worker reference existing dist assets", (t) => {
+  // This one asserts against build output, so on a clean checkout there is
+  // nothing to check yet. Skip rather than fail — `npm test` should be usable
+  // without remembering to build first.
+  if (!existsSync(path.join(distRoot, "manifest.json"))) {
+    t.skip("no dist/ output — run `npm run build` first");
+    return;
+  }
+
   const manifest = JSON.parse(
     readFileSync(path.join(distRoot, "manifest.json"), "utf8"),
   );
