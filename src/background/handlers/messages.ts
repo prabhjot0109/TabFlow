@@ -305,7 +305,7 @@ export async function handleMessage(
 
           // Copy original tab's cached screenshot to the duplicated tab
           if (duplicatedTab?.id && tab.id) {
-            const cachedScreenshot = screenshotCache.getIfFresh(tab.id, 99999999);
+            const cachedScreenshot = screenshotCache.get(tab.id);
             if (cachedScreenshot) {
               screenshotCache.set(duplicatedTab.id, cachedScreenshot.data);
             }
@@ -354,7 +354,8 @@ export async function handleMessage(
           if (!response) {
             sendResponse({
               success: false,
-              error: "Cannot control media on this tab",
+              error:
+                "Cannot control media on this tab. Enable full site access in Tab Flow's options to control tabs you haven't opened the switcher from.",
             });
             return;
           }
@@ -597,37 +598,6 @@ function isMissingHostPermissionError(error: unknown): boolean {
   );
 }
 
-function getOriginPermission(tabUrl: string): string | null {
-  if (!tabUrl.startsWith("http://") && !tabUrl.startsWith("https://")) {
-    return null;
-  }
-  try {
-    const origin = new URL(tabUrl).origin;
-    return `${origin}/*`;
-  } catch {
-    return null;
-  }
-}
-
-async function ensureHostPermissionForTab(tabId: number): Promise<boolean> {
-  const tab = await chrome.tabs.get(tabId).catch(() => null);
-  if (!tab || !tab.url || !screenshot.isTabCapturable(tab)) {
-    return false;
-  }
-
-  const originPermission = getOriginPermission(tab.url);
-  if (!originPermission) return false;
-
-  const hasPermission = await chrome.permissions
-    .contains({ origins: [originPermission] })
-    .catch(() => false);
-  if (hasPermission) return true;
-
-  return chrome.permissions
-    .request({ origins: [originPermission] })
-    .catch(() => false);
-}
-
 async function tryInjectContentScript(tabId: number): Promise<boolean> {
   try {
     await chrome.scripting.executeScript({
@@ -645,20 +615,46 @@ async function tryInjectContentScript(tabId: number): Promise<boolean> {
     }
 
     if (isMissingHostPermissionError(injectErr)) {
-      const granted = await ensureHostPermissionForTab(tabId);
-      if (granted) {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: [contentScriptPath],
-        });
-        return true;
-      }
-      console.warn("[INJECT] Host permission not granted by user.");
+      // `activeTab` only covers the tab the switcher was invoked from, so any
+      // other tab needs the optional host permission. It cannot be requested
+      // from here — chrome.permissions.request needs a user gesture, which a
+      // service worker does not have — so the opt-in lives in the options page.
+      console.warn(
+        "[INJECT] No host access for this tab. Enable full site access in Tab Flow's options to reach tabs you haven't opened the switcher from."
+      );
       return false;
     }
 
     throw injectErr;
   }
+}
+
+// executeScript resolves once the file has evaluated, but the content script's
+// onMessage listener can register a tick or two later, and on a busy page that
+// gap stretches. A single fixed delay was losing that race and dropping the
+// user into the popup-window fallback, so poll briefly instead.
+const INJECTION_HANDSHAKE_ATTEMPTS = 6;
+const INJECTION_HANDSHAKE_INTERVAL_MS = 25;
+
+async function sendMessageAfterInjection<T>(
+  tabId: number,
+  message: Record<string, unknown>,
+): Promise<T | null> {
+  for (let attempt = 0; attempt < INJECTION_HANDSHAKE_ATTEMPTS; attempt++) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, INJECTION_HANDSHAKE_INTERVAL_MS),
+    );
+
+    try {
+      return (await chrome.tabs.sendMessage(tabId, message)) as T;
+    } catch (err: unknown) {
+      // Anything other than "not listening yet" will not fix itself by waiting.
+      if (!isMissingConnectionError(err)) return null;
+    }
+  }
+
+  console.warn("[INJECT] Content script did not respond after injection.");
+  return null;
 }
 
 async function sendMessageWithRetryResponse<T>(
@@ -676,10 +672,7 @@ async function sendMessageWithRetryResponse<T>(
           return null;
         }
 
-        // executeScript resolves after the content script has loaded, so only
-        // keep a very small buffer here to avoid slowing quick-switch startup.
-        await new Promise((resolve) => setTimeout(resolve, 40));
-        return (await chrome.tabs.sendMessage(tabId, message)) as T;
+        return await sendMessageAfterInjection<T>(tabId, message);
       } catch {
         return null;
       }

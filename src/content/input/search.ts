@@ -7,6 +7,13 @@ import {
   shouldUseVirtualRendering,
 } from "../ui/rendering";
 
+const DEBUG_LOGGING = false;
+const log = (...args: unknown[]) => {
+  if (DEBUG_LOGGING) {
+    console.log(...args);
+  }
+};
+
 type NavigationEntryLike = {
   url: string | null;
   index: number;
@@ -43,7 +50,7 @@ export function getNavigationHistory(): {
 
     // Check if Navigation API is available
     if (!navigationApi) {
-      console.log("[Tab Flow] Navigation API not available");
+      log("[Tab Flow] Navigation API not available");
       return { back: [], forward: [] };
     }
 
@@ -51,12 +58,12 @@ export function getNavigationHistory(): {
     const currentEntry = navigationApi.currentEntry;
 
     if (!entries || entries.length === 0 || !currentEntry) {
-      console.log("[Tab Flow] No navigation entries available");
+      log("[Tab Flow] No navigation entries available");
       return { back: [], forward: [] };
     }
 
     const currentIndex = currentEntry.index;
-    console.log(
+    log(
       "[Tab Flow] Navigation entries:",
       entries.length,
       "Current index:",
@@ -87,7 +94,7 @@ export function getNavigationHistory(): {
       }
     }
 
-    console.log(
+    log(
       "[Tab Flow] Back entries:",
       backEntries.length,
       "Forward entries:",
@@ -241,7 +248,7 @@ export function handleSearch(e: Event) {
       // Use the Navigation API to get actual browser history entries
       // This is more reliable than tracking history ourselves
       const historyData = getNavigationHistory();
-      console.log("[Tab Flow] Navigation API history:", historyData);
+      log("[Tab Flow] Navigation API history:", historyData);
       renderHistoryView(historyData);
       return;
     }

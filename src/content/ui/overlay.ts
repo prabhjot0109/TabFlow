@@ -568,6 +568,14 @@ export function showTabFlow(
 
   if (state.isOverlayVisible && !state.isClosing) return;
 
+  // showQuickSwitch closes this overlay; do the reverse here so the two can
+  // never be on screen together. Both are modal <dialog>s in the same shadow
+  // root, and Quick Switch's Alt-release listener stays armed on document —
+  // releasing Alt would switch tabs out from under the Tab Flow UI.
+  if (state.isQuickSwitchVisible) {
+    closeQuickSwitch();
+  }
+
   // Cancel any pending close
   if (state.closeTimeout) {
     clearTimeout(state.closeTimeout);
@@ -1319,7 +1327,7 @@ export async function showQuickSwitch(
   activeTabId: number | null | undefined,
   groups: Group[] = []
 ) {
-  console.log(`[Quick Switch] Opening with ${tabs.length} tabs and ${groups.length} groups`);
+  log(`[Quick Switch] Opening with ${tabs.length} tabs and ${groups.length} groups`);
 
   if (state.isQuickSwitchVisible) return;
 

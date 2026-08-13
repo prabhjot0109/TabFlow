@@ -111,8 +111,6 @@ function setupMediaEventListeners() {
   }
 }
 
-setupMediaEventListeners();
-
 function scheduleInitialMediaDetection() {
   const schedule = () => detectMedia();
   if ("requestIdleCallback" in window) {
@@ -122,12 +120,6 @@ function scheduleInitialMediaDetection() {
   }
 }
 
-// Check on load (deferred for lower overhead)
-if (document.readyState === "complete") {
-  scheduleInitialMediaDetection();
-} else {
-  window.addEventListener("load", scheduleInitialMediaDetection, { once: true });
-}
 
 // ============================================================================
 // AUTO-CLOSE ON FOCUS / VISIBILITY CHANGE
@@ -140,13 +132,11 @@ const closeAnyOverlayIfOpen = () => {
   if (state.isQuickSwitchVisible) closeQuickSwitch();
 };
 
-window.addEventListener("blur", closeAnyOverlayIfOpen);
-
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) closeAnyOverlayIfOpen();
-});
-
-chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
+const handleExtensionMessage = (
+  request: any,
+  _: chrome.runtime.MessageSender,
+  sendResponse: (response?: any) => void,
+): boolean => {
   if (request.action === "showTabFlow") {
     // If overlay already visible, treat repeated Alt+W as cycle-next
     if (state.isOverlayVisible) {
@@ -190,4 +180,38 @@ chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
     return true;
   }
   return true;
-});
+};
+
+function initializeContentScript() {
+  setupMediaEventListeners();
+
+  // Check on load (deferred for lower overhead)
+  if (document.readyState === "complete") {
+    scheduleInitialMediaDetection();
+  } else {
+    window.addEventListener("load", scheduleInitialMediaDetection, {
+      once: true,
+    });
+  }
+
+  window.addEventListener("blur", closeAnyOverlayIfOpen);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) closeAnyOverlayIfOpen();
+  });
+
+  chrome.runtime.onMessage.addListener(handleExtensionMessage);
+}
+
+// chrome.scripting.executeScript will happily evaluate this file a second time
+// in a tab that already has it — the background only injects on a failed
+// sendMessage, but a partially-initialised first run puts us exactly there.
+// A re-run would double every listener and, because the fresh module instance
+// has no handle on the existing overlay, append a second one into the shadow
+// root. The flag lives on `window` because module scope is per-injection.
+const INJECTION_FLAG = "__tabFlowContentScriptLoaded";
+const injectionScope = window as unknown as Record<string, boolean | undefined>;
+
+if (!injectionScope[INJECTION_FLAG]) {
+  injectionScope[INJECTION_FLAG] = true;
+  initializeContentScript();
+}

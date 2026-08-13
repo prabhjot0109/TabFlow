@@ -21,15 +21,14 @@ export function handleGridClick(e: MouseEvent) {
   try {
     const target = e.target as HTMLElement;
 
-    // Handle close button
-    if (
-      target.dataset.action === "close" ||
-      target.classList.contains("tab-close-btn")
-    ) {
+    // Handle close button. Match the whole button rather than the exact event
+    // target: a click almost always lands on the <svg> icon inside it, which
+    // carries neither the class nor the dataset, and used to fall through to
+    // the tab-card branch below and switch to the tab instead of closing it.
+    const closeBtn = target.closest(".tab-close-btn") as HTMLElement | null;
+    if (closeBtn) {
       e.stopPropagation();
-      const tabId = parseInt(
-        target.dataset.tabId || target.parentElement!.dataset.tabId || "0"
-      );
+      const tabId = parseInt(closeBtn.dataset.tabId || "0");
       if (tabId && !Number.isNaN(tabId)) {
         closeTab(tabId);
       }
