@@ -17,6 +17,10 @@ import {
 } from "./services/tab-data";
 import { handleMessage, sendMessageWithRetry } from "./handlers/messages";
 import { getCenteredPopupBounds } from "../shared/panel";
+import {
+  hasBroadHostAccessSync,
+  trackBroadHostAccess,
+} from "../shared/host-access";
 import type { Group, Tab } from "../shared/types";
 
 const DEBUG_LOGGING = false;
@@ -229,6 +233,7 @@ async function initialize(): Promise<void> {
 
   await loadCacheSettings();
   await refreshScreenshotCacheIfProfileChanged();
+  await trackBroadHostAccess();
 
   // Load persisted data
   await mediaTracker.loadTabsWithMedia();
@@ -261,6 +266,47 @@ async function captureInvokedTab(tab: chrome.tabs.Tab): Promise<void> {
     });
   } catch (error) {
     console.debug("[CAPTURE] Failed to capture invoked tab:", error);
+  }
+}
+
+// Capturing as tabs are activated is what populates previews beyond the single
+// tab the switcher was invoked from — captureVisibleTab can only ever photograph
+// the foreground tab, so this is the only way coverage accumulates. A plain tab
+// switch is not a user invocation, so it needs broad host access and stays a
+// no-op until the user opts in from the options page.
+const ACTIVATION_CAPTURE_DELAY = 400;
+let activationCaptureTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingActivationTabId: number | null = null;
+
+function scheduleActivationCapture(tabId: number): void {
+  if (!hasBroadHostAccessSync()) return;
+
+  // Only the tab the user settles on is worth a capture; cycling past a dozen
+  // tabs should not spend a dozen slots.
+  pendingActivationTabId = tabId;
+  if (activationCaptureTimer) clearTimeout(activationCaptureTimer);
+
+  activationCaptureTimer = setTimeout(() => {
+    activationCaptureTimer = null;
+    const target = pendingActivationTabId;
+    pendingActivationTabId = null;
+    if (target !== null) void captureActivatedTab(target);
+  }, ACTIVATION_CAPTURE_DELAY);
+}
+
+async function captureActivatedTab(tabId: number): Promise<void> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.active || !screenshot.isTabCapturable(tab)) return;
+
+    // A recent preview is good enough; don't spend quota re-shooting it.
+    if (screenshotCache.isFresh(tabId, PERF_CONFIG.SCREENSHOT_CACHE_DURATION)) {
+      return;
+    }
+
+    await screenshot.captureTabScreenshot(tabId, screenshotCache);
+  } catch (error) {
+    console.debug("[CAPTURE] Activation capture skipped:", error);
   }
 }
 
@@ -323,6 +369,7 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
     (activeInfo: chrome.tabs.OnActivatedInfo) => {
       try {
         tabTracker.updateRecentTabOrder(activeInfo.tabId);
+        scheduleActivationCapture(activeInfo.tabId);
       } catch (e) {
         console.debug("[TAB] Error in onActivated:", e);
       }
@@ -331,19 +378,22 @@ if (typeof chrome !== "undefined" && chrome.tabs) {
 
   // Listen for tab updates
   chrome.tabs.onUpdated.addListener(
-    (
-      tabId: number,
-      changeInfo: chrome.tabs.OnUpdatedInfo,
-      tab: chrome.tabs.Tab,
-    ) => {
+    (tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo) => {
       try {
         if (changeInfo.status === "loading") {
           mediaTracker.removeMediaTab(tabId);
         }
 
-        // Track audible state changes
-        if (changeInfo.audible !== undefined && changeInfo.audible) {
-          mediaTracker.addMediaTab(tabId);
+        // Track audible state in both directions. Only handling the `true`
+        // edge left tabs pinned as "playing" forever once their audio stopped,
+        // because nothing else clears the flag for tabs without a content
+        // script. `hasMedia` stays sticky on the way down — a silent tab still
+        // has a media element worth offering controls for.
+        if (changeInfo.audible !== undefined) {
+          mediaTracker.reportMediaState(tabId, {
+            hasMedia: changeInfo.audible,
+            isPlaying: changeInfo.audible,
+          });
         }
       } catch (e) {
         console.debug("[TAB] Error in onUpdated:", e);

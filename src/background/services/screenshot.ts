@@ -7,9 +7,21 @@
 import { PERF_CONFIG } from "../config";
 import { LRUCache } from "../cache/lru-cache";
 import { perfMetrics } from "../utils/performance";
+import { CaptureThrottle } from "../utils/capture-throttle";
 
 // Current quality tier setting
 let currentQualityTier: string = PERF_CONFIG.DEFAULT_QUALITY_TIER;
+
+// Chrome rejects captureVisibleTab past roughly two calls per second. Every
+// capture reserves a slot here first so activation-driven captures cannot
+// starve the quota that invocation-time captures depend on.
+const captureThrottle = new CaptureThrottle(PERF_CONFIG.THROTTLE_INTERVAL);
+
+// How long each caller is willing to queue for a capture slot. An invocation
+// capture is on the critical path to showing the overlay, so it gives up
+// quickly and lets the cached preview stand in; a background capture can wait.
+const IMMEDIATE_CAPTURE_MAX_WAIT_MS = 250;
+const BACKGROUND_CAPTURE_MAX_WAIT_MS = 1500;
 
 // ============================================================================
 // QUALITY TIER MANAGEMENT
@@ -174,6 +186,29 @@ export async function captureTabScreenshot(
         console.debug(`[CAPTURE] Tab ${tabId} no longer active after delay`);
         return null;
       }
+    }
+
+    // Queue for a capture slot before spending the quota.
+    const slotGranted = await captureThrottle.reserve(
+      options.immediate
+        ? IMMEDIATE_CAPTURE_MAX_WAIT_MS
+        : BACKGROUND_CAPTURE_MAX_WAIT_MS,
+    );
+    if (!slotGranted) {
+      console.debug(`[CAPTURE] Skipped tab ${tabId}: capture quota busy`);
+      return null;
+    }
+
+    // captureVisibleTab photographs whatever is visible in the window, so if
+    // the user moved on while we queued we would file someone else's page
+    // under this tab id.
+    const stillActive = await chrome.tabs
+      .get(tabId)
+      .then((current) => current.active)
+      .catch(() => false);
+    if (!stillActive) {
+      console.debug(`[CAPTURE] Tab ${tabId} left the foreground while queued`);
+      return null;
     }
 
     // Get quality settings

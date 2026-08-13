@@ -1,4 +1,3 @@
-import { PERF_CONFIG } from "../config";
 import { LRUCache } from "../cache/lru-cache";
 import { perfMetrics } from "../utils/performance";
 import * as mediaTracker from "./media-tracker";
@@ -82,10 +81,10 @@ export async function buildTabsForWindow(
       screenshot.isTabCapturable(tab);
 
     if (shouldAttachScreenshot) {
-      const cached = screenshotCache.getIfFresh(
-        tab.id,
-        PERF_CONFIG.SCREENSHOT_CACHE_DURATION,
-      );
+      // Show any preview we hold, however old. Age only governs whether a
+      // re-capture is worth taking (see captureTabScreenshot) — a stale
+      // thumbnail still identifies the tab, a blank card does not.
+      const cached = screenshotCache.get(tab.id);
 
       if (cached) {
         screenshotData = cached.data;

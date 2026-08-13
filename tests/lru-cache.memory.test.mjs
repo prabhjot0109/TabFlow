@@ -47,6 +47,39 @@ test("fresh cache reads update memory recency without rewriting screenshot blobs
   assert.equal(storage.writes.length, 0);
 });
 
+test("a stale entry stays readable and is not deleted", async () => {
+  const storage = new FakeStorage();
+  const cache = new LRUCache(3, 1024 * 1024, storage);
+  await cache.ready;
+
+  const screenshot = "data:image/jpeg;base64,stale";
+  cache.set(1, screenshot);
+  storage.deletes = [];
+
+  // A negative max age makes any entry stale regardless of wall-clock timing.
+  assert.equal(cache.getIfFresh(1, -1), null, "should report as not fresh");
+  assert.equal(
+    cache.get(1)?.data,
+    screenshot,
+    "stale preview must still be displayable",
+  );
+  assert.deepEqual(storage.deletes, [], "staleness must not evict from storage");
+});
+
+test("replacing an existing entry does not evict a different one", async () => {
+  const storage = new FakeStorage();
+  const cache = new LRUCache(2, 1024 * 1024, storage);
+  await cache.ready;
+
+  cache.set(1, "data:image/jpeg;base64,one");
+  cache.set(2, "data:image/jpeg;base64,two");
+  cache.set(1, "data:image/jpeg;base64,one-updated");
+
+  assert.equal(cache.get(1)?.data, "data:image/jpeg;base64,one-updated");
+  assert.equal(cache.get(2)?.data, "data:image/jpeg;base64,two");
+  assert.equal(cache.getStats().entries, 2);
+});
+
 test("cache evicts the least recently used entry after a fresh read", async () => {
   const storage = new FakeStorage();
   const cache = new LRUCache(2, 1024 * 1024, storage);

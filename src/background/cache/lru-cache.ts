@@ -142,14 +142,15 @@ export class LRUCache {
     return Date.now() - entry.timestamp <= maxAgeMs;
   }
 
-  // Get item only if it's fresh, otherwise evict
+  // Get item only if it is younger than maxAgeMs. Used to decide whether a
+  // re-capture is warranted — NOT to decide whether a preview is displayable.
+  // A stale entry is deliberately left in place: it stays available to `get`
+  // so the UI can show an old thumbnail instead of a blank card, and eviction
+  // remains the LRU's job alone.
   getIfFresh(key: number, maxAgeMs: number): CacheEntry | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
-    if (Date.now() - entry.timestamp > maxAgeMs) {
-      this.delete(key);
-      return null;
-    }
+    if (Date.now() - entry.timestamp > maxAgeMs) return null;
     return this.get(key);
   }
 
@@ -157,10 +158,13 @@ export class LRUCache {
   set(key: number, value: string): void {
     const size = this._estimateSize(value);
 
-    // Remove existing entry if updating
+    // Remove existing entry if updating. It has to leave `cache` as well as
+    // `accessOrder`, otherwise it still counts towards `maxTabs` below and a
+    // replacement would evict an unrelated tab to make room for itself.
     if (this.cache.has(key)) {
       const oldSize = this.cache.get(key)!.size;
       this.currentBytes -= oldSize;
+      this.cache.delete(key);
       this.accessOrder.delete(key);
     }
 
